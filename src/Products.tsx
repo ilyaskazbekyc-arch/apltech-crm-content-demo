@@ -1,0 +1,169 @@
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
+import type { Complexity, Priority, Product, ScreenProps } from './types';
+import { ACTORS } from './seed';
+import { formatDate, getProductBaseWU } from './engine';
+
+const PRIORITIES: Priority[] = ['Critical', 'High', 'Normal', 'Low'];
+const COMPLEXITIES: Record<Complexity, string> = { easy: 'Лёгкая', medium: 'Средняя', complex: 'Сложная' };
+const STATUS_NAMES = { queued: 'Свободная очередь', in_progress: 'В работе', waiting_manager: 'Ожидает менеджера', completed: 'Выполнен' };
+const money = (value: number) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(value);
+const wu = (value: number) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(value);
+const actorName = (id: string) => ACTORS.find(person => person.id === id)?.name ?? 'Не назначен';
+
+function placeholder(product: Product) {
+  const isPrinter = /картридж|лента|RL-BR/i.test(product.name + product.partNumber);
+  const shape = isPrinter
+    ? '<rect x="25" y="26" width="45" height="64" rx="7" fill="#404c5a"/><rect x="31" y="35" width="33" height="24" rx="2" fill="#fff"/><path d="M36 67h23M36 74h23" stroke="#99aabb" stroke-width="3"/>'
+    : /монитор/i.test(product.name)
+      ? '<rect x="12" y="24" width="71" height="48" rx="4" fill="#263847"/><rect x="17" y="29" width="61" height="37" rx="2" fill="#d8e9f7"/><path d="M47 73v15M30 89h34" stroke="#718a9a" stroke-width="5"/>'
+      : /ноутбук/i.test(product.name)
+        ? '<rect x="16" y="22" width="62" height="45" rx="3" fill="#3c5162"/><rect x="21" y="27" width="52" height="33" fill="#d8e9f7"/><path d="M16 67L7 83h79L78 67" fill="#b5c4cf"/>'
+        : '<rect x="25" y="24" width="46" height="63" rx="6" fill="#dae6ee" stroke="#8da9bd" stroke-width="2"/><path d="M37 40h22M37 48h22M37 56h22" stroke="#8da9bd" stroke-width="3"/><circle cx="48" cy="73" r="4" fill="#2c74da"/>';
+  return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="96" height="116" viewBox="0 0 96 116">${shape}</svg>`)}`;
+}
+
+function ProductImage({ product, className }: { product: Product; className: string }) {
+  return <img className={className} src={product.image || placeholder(product)} alt={product.name} onError={event => { event.currentTarget.onerror = null; event.currentTarget.src = placeholder(product); }} />;
+}
+
+function PriorityTag({ value }: { value: Priority }) {
+  return <span className={`crm-tag crm-tag-priority priority-${value}`}>{value}</span>;
+}
+
+function EditIcon() {
+  return <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m14 4 6 6M4 20l5-1 12-12a2.2 2.2 0 0 0-3-3L6 16l-2 4Z"/><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7"/></svg>;
+}
+
+export function ProductList(props: ScreenProps & { createProduct: () => void; selectedIds: string[]; onSelection: (ids: string[]) => void; bulkPriority: () => void; createRequest: () => void }) {
+  const { state, actor, selectedIds, onSelection } = props;
+  const allSelected = state.products.length > 0 && state.products.every(product => selectedIds.includes(product.id));
+  const toggle = (id: string) => onSelection(selectedIds.includes(id) ? selectedIds.filter(value => value !== id) : [...selectedIds, id]);
+  const openCount = state.tickets.filter(ticket => ticket.status !== 'completed').length;
+  return <>
+    <div className="crm-title-line"><h1>Товары</h1><div className="crm-title-actions">
+      {actor.role === 'manager' && <button className="crm-btn crm-btn-primary" onClick={props.createRequest}>Новый запрос{selectedIds.length>1?' · '+selectedIds.length+' товаров':''}</button>}
+      {actor.role === 'lead' && <button className="crm-btn crm-btn-soft" onClick={props.bulkPriority} disabled={selectedIds.length === 0}>Изменить приоритет</button>}
+      {actor.role === 'specialist' && <button className="crm-btn crm-btn-primary" onClick={props.createProduct}>Добавить товар</button>}
+    </div></div>
+    <div className="crm-panel crm-panel-pad">
+      <div className="crm-table-toolbar"><div className="crm-list-summary"><span>Всего: <strong>{state.products.length}</strong></span><span>Опубликовано: <strong>{state.products.filter(product => product.published).length}</strong></span><span>Открытых запросов: <strong>{openCount}</strong></span></div><span className="crm-product-count">Демонстрационный каталог</span></div>
+      {selectedIds.length > 0 && <div className="crm-selection-bar"><strong className="crm-small">Выбрано товаров: {selectedIds.length}</strong><button className="crm-link crm-small" onClick={() => onSelection([])}>Снять выделение</button>{actor.role === 'manager' && <span className="crm-small crm-muted">«Новый запрос» в верхней панели создаст один запрос на выбранный список.</span>}{actor.role === 'lead' && <span className="crm-small crm-muted">Приоритет сразу обновится во всех открытых запросах этих товаров.</span>}</div>}
+      <div className="crm-table-wrap"><table className="crm-table crm-product-table"><colgroup><col style={{ width: '44px' }}/><col style={{ width: '32%' }}/><col style={{ width: '22%' }}/><col style={{ width: '11%' }}/><col style={{ width: '20%' }}/><col style={{ width: '15%' }}/></colgroup>
+        <thead><tr><th><input className="crm-checkbox" type="checkbox" checked={allSelected} aria-label="Выбрать все товары" onChange={() => onSelection(allSelected ? [] : state.products.map(product => product.id))}/></th><th>Наименование товара</th><th>Информация о поставщике</th><th>Цена</th><th>Контент / KPI</th><th>Действия</th></tr></thead>
+        <tbody>{state.products.map((product, index) => {
+          const related = state.tickets.filter(ticket => ticket.productIds.includes(product.id) && ticket.status !== 'completed');
+          const errors = state.issues.filter(issue => issue.productId === product.id && issue.status !== 'cancelled');
+          return <tr key={product.id} className={selectedIds.includes(product.id) ? 'selected' : ''}>
+            <td><input className="crm-checkbox" type="checkbox" checked={selectedIds.includes(product.id)} aria-label={`Выбрать ${product.partNumber}`} onChange={() => toggle(product.id)}/><div className="crm-tiny crm-muted crm-mt16">{index + 1}</div></td>
+            <td><div className="crm-product-ident"><ProductImage product={product} className="crm-product-thumb"/><div className="crm-product-copy"><button className="crm-link crm-product-name" onClick={() => props.openProduct(product.id)}>{product.name}</button><div className="crm-product-pn">pn: {product.partNumber}</div><div className="crm-flex crm-wrap"><span className={`crm-tag crm-status-pill ${product.published ? 'crm-tag-success' : ''}`}>{product.published ? 'Опубликован' : 'Черновик'}</span>{errors.length > 0 && <span className="crm-tag crm-tag-error">Ошибка</span>}</div></div></div></td>
+            <td><table className="crm-supplier-grid"><thead><tr><th>Поставщик</th><th>Нал.</th><th>Рез.</th></tr></thead><tbody><tr><td>{product.supplier || 'Не указан'}</td><td>{product.stock}</td><td>0</td></tr></tbody></table><div className="crm-tiny crm-muted crm-mt8">{formatDate(product.lastEditedAt)}</div></td>
+            <td><span className="crm-tiny crm-muted">Стандартная</span><br/><span className="crm-product-price">{money(product.price)} ₸</span></td>
+            <td><div className="crm-product-content"><PriorityTag value={product.priority}/><span className="crm-small">{wu(getProductBaseWU(product, state.settings))} WU <span className="crm-muted">· {COMPLEXITIES[product.complexity]}</span></span><span className="crm-tiny crm-muted">{actorName(product.lastEditorId)} · v{product.version}</span>{related.length > 0 ? <button className="crm-link crm-tiny" onClick={() => props.openTicket(related[0].id)}>{related[0].id} · {STATUS_NAMES[related[0].status]}{related.length > 1 ? ` +${related.length - 1}` : ''}</button> : <span className="crm-tiny crm-muted">Нет открытых запросов</span>}</div></td>
+            <td><div className="crm-product-actions"><button className="crm-btn crm-btn-soft crm-btn-sm" onClick={() => props.openProduct(product.id)}>Карточка</button>{actor.role === 'manager' && <button className="crm-link crm-small" onClick={() => props.requestProduct(product.id)}>Создать запрос</button>}{actor.role === 'specialist' && <button className="crm-link crm-small" onClick={() => props.openProduct(product.id)}>Редактировать</button>}</div></td>
+          </tr>;
+        })}</tbody>
+      </table></div>
+    </div>
+    <div className="crm-footer">CRM AplTech Казахстан (1.00) © 2026</div>
+  </>;
+}
+
+type DrawerAction = 'priority' | 'weight' | 'error' | 'appeal' | 'resolve' | null;
+
+export function ProductDrawer(props: ScreenProps & { productId: string; onClose: () => void }) {
+  const { state, actor, productId, dispatch, onClose } = props;
+  const product = state.products.find(item => item.id === productId);
+  const [editing, setEditing] = useState(false);
+  const [action, setAction] = useState<DrawerAction>(null);
+  const [reason, setReason] = useState('');
+  const [priority, setPriority] = useState<Priority>(product?.priority ?? 'Normal');
+  const [weight, setWeight] = useState(product?.weightOverride?.toString() ?? '');
+  const [automaticWeight, setAutomaticWeight] = useState(product?.weightOverride === undefined);
+  const [critical, setCritical] = useState(false);
+  const [issueId, setIssueId] = useState('');
+  const [cancelError, setCancelError] = useState(true);
+  const [name, setName] = useState(product?.name ?? '');
+  const [description, setDescription] = useState(product?.description ?? '');
+  const [image, setImage] = useState(product?.image ?? '');
+  const [supplier, setSupplier] = useState(product?.supplier ?? '');
+  const [complexity, setComplexity] = useState<Complexity>(product?.complexity ?? 'easy');
+  const [published, setPublished] = useState(product?.published ?? false);
+  const [countPlan, setCountPlan] = useState(false);
+  useEffect(() => {
+    if (!product) return;
+    setName(product.name); setDescription(product.description); setImage(product.image); setSupplier(product.supplier); setComplexity(product.complexity); setPublished(product.published); setPriority(product.priority); setWeight(product.weightOverride?.toString() ?? ''); setAutomaticWeight(product.weightOverride === undefined); setCountPlan(false);
+  }, [productId, product?.version, product?.priority, product?.weightOverride]);
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); if (action) setAction(null); else if (editing) setEditing(false); else onClose(); } };
+    document.addEventListener('keydown', listener);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', listener); document.body.style.overflow = previous; };
+  }, [onClose, editing, action]);
+  useEffect(() => { if (action) document.getElementById('pdp-action-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [action, issueId]);
+  if (!product) return null;
+  const relatedTickets = state.tickets.filter(ticket => ticket.productIds.includes(product.id));
+  const activeTickets = relatedTickets.filter(ticket => ticket.status !== 'completed');
+  const productIssues = state.issues.filter(issue => issue.productId === product.id && issue.status !== 'cancelled');
+  const contentChanged = name.trim() !== product.name || description.trim() !== product.description || image.trim() !== product.image || supplier.trim() !== product.supplier || complexity !== product.complexity || published !== product.published;
+  const openAction = (value: DrawerAction, id = '') => { setAction(value); setReason(''); setIssueId(id); setCritical(false); setCancelError(true); };
+  const save = (event: FormEvent) => {
+    event.preventDefault();
+    const saved = dispatch({ type: 'edit_product', productId, changes: { name: name.trim(), description: description.trim(), image: image.trim(), supplier: supplier.trim(), complexity, published }, countPlan: countPlan && activeTickets.length === 0 });
+    if (saved) { setEditing(false); setCountPlan(false); }
+  };
+  const submitAction = (event: FormEvent) => {
+    event.preventDefault();
+    let accepted = false;
+    if (action === 'priority') accepted = dispatch({ type: 'set_priority', productIds: [productId], priority, reason });
+    if (action === 'weight') accepted = dispatch({ type: 'set_weight', productId, weight: automaticWeight ? undefined : Number(weight), reason });
+    if (action === 'error') accepted = dispatch({ type: 'mark_error', productId, reason, critical });
+    if (action === 'appeal') accepted = dispatch({ type: 'appeal_error', issueId, reason });
+    if (action === 'resolve') accepted = dispatch({ type: 'resolve_error', issueId, cancel: cancelError, reason });
+    if (accepted) { setAction(null); setReason(''); }
+  };
+  return <>
+    <div className="crm-drawer-overlay" onClick={onClose} aria-hidden="true"/>
+    <section className="crm-drawer" role="dialog" aria-modal="true" aria-label={`Карточка товара ${product.partNumber}`}>
+      <button className="crm-drawer-close" onClick={onClose} aria-label="Закрыть карточку">×</button>
+      <h1>{editing ? 'Редактирование товара' : 'Информация о товаре'}</h1>
+      {editing ? <form onSubmit={save}>
+        <div className="crm-edit-preview">{name}</div>
+        <div className="crm-product-edit-image-wrap"><ProductImage product={{ ...product, image }} className="crm-product-edit-image"/><div className="crm-small crm-muted">Part number: <strong className="crm-bold">{product.partNumber}</strong><br/>Автор после сохранения: {actor.name}</div></div>
+        <div className="crm-form-grid">
+          <div className="crm-field crm-span2"><label htmlFor="pdp-name" className="crm-required">Наименование</label><input id="pdp-name" value={name} onChange={event => setName(event.target.value)} required maxLength={260}/></div>
+          <div className="crm-field crm-span2"><label htmlFor="pdp-description" className="crm-required">Короткое описание</label><textarea id="pdp-description" value={description} onChange={event => setDescription(event.target.value)} required maxLength={4000}/></div>
+          <div className="crm-field crm-span2"><label htmlFor="pdp-image">Изображение</label><input id="pdp-image" value={image} onChange={event => setImage(event.target.value)} placeholder="URL изображения или /assets/product-photo.jpg"/><span className="crm-field-hint">Поле изображения обязательно для публикации. Демонстрационная картинка: /assets/product-photo.jpg.</span></div>
+          <div className="crm-field"><label htmlFor="pdp-supplier">Поставщик</label><input id="pdp-supplier" value={supplier} onChange={event => setSupplier(event.target.value)} maxLength={180}/></div>
+          <div className="crm-field"><label htmlFor="pdp-complexity">Сложность карточки</label><select id="pdp-complexity" value={complexity} onChange={event => setComplexity(event.target.value as Complexity)}><option value="easy">Лёгкая</option><option value="medium">Средняя</option><option value="complex">Сложная</option></select></div>
+          <label className="crm-check crm-span2"><input type="checkbox" checked={published} onChange={event => setPublished(event.target.checked)}/>Опубликовать карточку</label>
+        </div>
+        <div className="crm-edit-note">{activeTickets.length > 0 ? <>У товара есть открытый запрос. WU за запрос начислятся после его завершения; сохранение карточки обновляет контент и последнего автора.</> : <><label className="crm-check"><input type="checkbox" checked={countPlan} onChange={event => setCountPlan(event.target.checked)}/>Учесть как завершённую плановую работу</label><p className="crm-tiny crm-mt8">Начисление {wu(getProductBaseWU({ ...product, complexity }, state.settings))} WU без бонуса запроса. Используйте только при завершении отдельной плановой операции.</p></>}</div>
+        {!contentChanged && <p className="crm-note crm-mt16">Измените контент, чтобы сохранить новую версию карточки.</p>}
+        <div className="crm-form-actions"><button type="button" className="crm-btn crm-btn-soft" onClick={() => setEditing(false)}>Отмена</button><button type="submit" className="crm-btn crm-btn-primary" disabled={!contentChanged}>Сохранить карточку</button></div>
+      </form> : <>
+        <div className="crm-pdp-hero"><div className="crm-pdp-photo"><ProductImage product={product} className="crm-pdp-main-image"/></div><div><h2 className="crm-pdp-title">{product.name}</h2><div className="crm-mt16"><span className={`crm-tag crm-status-pill ${product.published ? 'crm-tag-success' : ''}`}>{product.published ? 'Опубликован' : 'Черновик'}</span></div><div className="crm-pdp-price-label">Цена на сайте (Стандартная)</div><div className="crm-pdp-price">{money(product.price)} тг.</div>{actor.role === 'specialist' && <div className="crm-mt16"><button className="crm-btn crm-btn-icon" onClick={() => { setEditing(true); setAction(null); }} aria-label="Редактировать карточку"><EditIcon/></button></div>}</div></div>
+        <table className="crm-supplier-grid"><thead><tr><th>Поставщик</th><th>Нал.</th><th>Рез.</th><th>Ожид.</th><th>Актуальность</th></tr></thead><tbody><tr><td>{product.supplier || 'Не указан'}</td><td>{product.stock}</td><td>0</td><td>0</td><td>{formatDate(product.lastEditedAt)}</td></tr></tbody></table>
+        <div className="crm-pdp-description"><h3>Короткое описание</h3><div className="crm-soft-box">{product.description || 'Описание пока не заполнено'}</div></div>
+        <div className="crm-content-strip"><div className="crm-content-top"><h3>Контент</h3><PriorityTag value={product.priority}/></div><div className="crm-flex crm-between crm-wrap"><span className="crm-small">{wu(getProductBaseWU(product, state.settings))} WU · {COMPLEXITIES[product.complexity]}</span><span className="crm-tiny crm-muted">{product.weightOverride === undefined ? 'Вес по правилам' : 'Индивидуальный вес'}</span></div><div className="crm-content-meta crm-mt8">Последний автор: {actorName(product.lastEditorId)} · v{product.version}<br/>{formatDate(product.lastEditedAt)}</div><div className="crm-content-actions">
+          {actor.role === 'manager' && <><button className="crm-btn crm-btn-primary" onClick={() => props.requestProduct(productId)}>Запросить доработку</button><button className="crm-btn crm-btn-soft" onClick={() => openAction('error')}>Сообщить об ошибке</button></>}
+          {actor.role === 'lead' && <><button className="crm-btn crm-btn-soft" onClick={() => openAction('priority')}>Изменить приоритет</button><button className="crm-btn crm-btn-soft" onClick={() => openAction('weight')}>Изменить вес</button></>}
+          {actor.role === 'specialist' && <button className="crm-btn crm-btn-primary" onClick={() => { setEditing(true); setAction(null); }}>Редактировать контент</button>}
+        </div></div>
+        {action && <form id="pdp-action-form" className="crm-inline-form" onSubmit={submitAction}>
+          <h3>{({ priority: 'Приоритет товара', weight: 'Индивидуальный вес карточки', error: 'Зафиксировать ошибку', appeal: 'Оспорить ошибку', resolve: 'Решение по ошибке' })[action]}</h3>
+          {action === 'priority' && <><div className="crm-field crm-mb16"><label htmlFor="pdp-priority">Новый приоритет</label><select id="pdp-priority" value={priority} onChange={event => setPriority(event.target.value as Priority)}>{PRIORITIES.map(value => <option key={value}>{value}</option>)}</select></div><p className="crm-note crm-mb16">Открытые запросы этого товара сразу наследуют новый приоритет. Завершённые начисления сохраняют прежнее правило.</p></>}
+          {action === 'weight' && <><label className="crm-check crm-mb16"><input type="checkbox" checked={automaticWeight} onChange={event => setAutomaticWeight(event.target.checked)}/>Рассчитывать по сложности и приоритету</label>{!automaticWeight && <div className="crm-field crm-mb16"><label htmlFor="pdp-weight" className="crm-required">Вес, WU</label><input type="number" id="pdp-weight" value={weight} min="0.01" max="10000" step="0.01" onChange={event => setWeight(event.target.value)} required/></div>}<p className="crm-note crm-mb16">Изменение действует для будущих операций. История начислений не пересчитывается.</p></>}
+          {action === 'error' && <><div className="crm-error-box crm-small crm-mb16">Сразу после отметки {actorName(product.lastEditorId)} получит −{wu(state.settings.qualityPenaltyPP)} п.п. KPI за версию {product.version}. Автор сможет оспорить ошибку.</div><label className="crm-check crm-mb16"><input type="checkbox" checked={critical} onChange={event => setCritical(event.target.checked)}/>Критическая ошибка</label></>}
+          {action === 'appeal' && <p className="crm-note crm-mb16">Штраф остаётся видимым до решения руководителя. Если ошибка отменена, KPI восстанавливается.</p>}
+          {action === 'resolve' && <div className="crm-field crm-mb16"><label htmlFor="pdp-error-resolution">Решение руководителя</label><select id="pdp-error-resolution" value={cancelError ? 'cancel' : 'keep'} onChange={event => setCancelError(event.target.value === 'cancel')}><option value="cancel">Отменить ошибку и восстановить KPI</option><option value="keep">Подтвердить ошибку</option></select></div>}
+          <div className="crm-field"><label htmlFor="pdp-reason" className="crm-required">{action === 'appeal' ? 'Причина оспаривания' : 'Причина'}</label><textarea id="pdp-reason" value={reason} onChange={event => setReason(event.target.value)} required minLength={3} maxLength={1500} placeholder={action === 'error' ? 'Опишите конкретную ошибку в карточке' : 'Укажите основание изменения'}/></div><div className="crm-form-actions"><button type="button" className="crm-btn crm-btn-soft" onClick={() => setAction(null)}>Отмена</button><button type="submit" className={`crm-btn ${action === 'error' ? 'crm-btn-danger' : 'crm-btn-primary'}`}>{action === 'error' ? 'Зафиксировать ошибку' : action === 'appeal' ? 'Отправить оспаривание' : action === 'resolve' ? 'Сохранить решение' : 'Сохранить изменение'}</button></div>
+        </form>}
+        <h3 className="crm-drawer-section-title">Основная информация</h3><div className="crm-soft-box crm-pdp-info"><div className="crm-info-row"><span>Product ID</span><span className="crm-info-dots"/><span>{product.id}</span></div><div className="crm-info-row"><span>Part number</span><span className="crm-info-dots"/><span>{product.partNumber}</span></div><div className="crm-info-row"><span>Сложность</span><span className="crm-info-dots"/><span>{COMPLEXITIES[product.complexity]}</span></div><div className="crm-info-row"><span>На складе</span><span className="crm-info-dots"/><span>{product.stock}</span></div></div>
+        {relatedTickets.length > 0 && <><h3 className="crm-drawer-section-title">Связанные запросы</h3><div className="crm-soft-box">{relatedTickets.map(ticket => <button className="crm-linked-ticket" key={ticket.id} onClick={() => props.openTicket(ticket.id)}><span>{ticket.id} · {ticket.batch ? `Список из ${ticket.productIds.length} товаров` : product.partNumber}</span><span className="crm-tag">{STATUS_NAMES[ticket.status]}</span></button>)}</div></>}
+        {productIssues.length > 0 && <><h3 className="crm-drawer-section-title">Ошибки и оспаривания</h3>{productIssues.map(issue => <div className="crm-quality-card" key={issue.id}><div className="crm-flex crm-between crm-wrap"><strong className="crm-small">{issue.id} · {actorName(issue.authorId)}</strong><span className={`crm-tag ${issue.status === 'appealed' ? 'crm-tag-warning' : 'crm-tag-error'}`}>{issue.status === 'appealed' ? 'Оспаривается' : `−${wu(issue.penaltyPP)} п.п.`}</span></div><p>{issue.reason}</p><span className="crm-tiny crm-muted">Версия {issue.version} · {formatDate(issue.at)}</span>{issue.appeal && <p className="crm-soft-box">Оспаривание: {issue.appeal}</p>}<div className="crm-content-actions">{issue.authorId === actor.id && issue.status === 'active' && <button className="crm-btn crm-btn-soft crm-btn-sm" onClick={() => openAction('appeal', issue.id)}>Оспорить</button>}{actor.role === 'lead' && <button className="crm-btn crm-btn-soft crm-btn-sm" onClick={() => openAction('resolve', issue.id)}>Рассмотреть ошибку</button>}</div></div>)}</>}
+      </>}
+    </section>
+  </>;
+}
