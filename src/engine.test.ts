@@ -248,3 +248,39 @@ describe('Качество, роли и формула исходного KPI', 
     expect(state.revision).toBe(1);
   });
 });
+
+
+describe('Подтверждение ошибки через тикет', () => {
+  it('создаёт один запрос и мгновенное списание автору дефектной версии', () => {
+    const before = fresh();
+    const state = applyAction(before, { type: 'create_error_ticket', productId: '526005', reason: 'Ошибка совместимости', source: 'Карточка CRM' }, start, 'manager1');
+    expect(before.tickets).toHaveLength(0);
+    expect(before.issues).toHaveLength(0);
+    expect(state.tickets).toHaveLength(1);
+    expect(state.issues).toHaveLength(1);
+    expect(state.issues[0].authorId).toBe('specialist2');
+    expect(state.issues[0].version).toBe(12);
+    expect(state.issues[0].penaltyPP).toBe(3);
+    expect(state.issues[0].ticketId).toBe(state.tickets[0].id);
+    expect(state.tickets[0].qualityIssueId).toBe(state.issues[0].id);
+    expect(state.notifications.filter(n => n.requiresAck)).toHaveLength(2);
+    expect(state.operations).toHaveLength(0);
+  });
+  it('повторное подтверждение не создаёт второй запрос или штраф', () => {
+    const action = { type: 'create_error_ticket' as const, productId: '526005', reason: 'Ошибка совместимости', source: 'Карточка CRM' };
+    const state = applyAction(fresh(), action, start, 'manager1');
+    const repeated = applyAction(state, action, start + minute, 'manager1');
+    expect(repeated.tickets).toHaveLength(1);
+    expect(repeated.issues).toHaveLength(1);
+    expect(getAnalytics(repeated).qualityPP).toBe(3);
+    expect(() => applyAction(fresh(), action, start, 'specialist1')).toThrow('роли');
+  });
+  it('связывает прежнюю отметку с тикетом без повторного списания', () => {
+    let state = applyAction(fresh(), { type: 'mark_error', productId: '526005', reason: 'Нет характеристики' }, start, 'manager1');
+    state = applyAction(state, { type: 'create_error_ticket', productId: '526005', reason: 'Исправить характеристику', source: 'Источник' }, start + minute, 'manager1');
+    expect(state.issues).toHaveLength(1);
+    expect(state.tickets).toHaveLength(1);
+    expect(state.issues[0].ticketId).toBe(state.tickets[0].id);
+    expect(getAnalytics(state).qualityPP).toBe(3);
+  });
+});

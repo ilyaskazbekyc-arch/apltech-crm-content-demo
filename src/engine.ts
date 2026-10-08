@@ -141,6 +141,25 @@ function validateSettings(settings: Settings) {
 export function applyAction(original: DemoState, action: Action, now: number, actorId: string): DemoState {
   const actor = ACTORS.find(a => a.id === actorId);
   if (!actor) throw new Error('Неизвестный пользователь.');
+  if (action.type === 'create_error_ticket') {
+    requireRole(actor, ['manager']);
+    required(action.reason, 'Описание ошибки');
+    required(action.source, 'Источник');
+    const product = original.products.find(p => p.id === action.productId);
+    if (!product) throw new Error('Карточка товара не найдена.');
+    const existing = original.issues.find(i => i.productId === product.id && i.version === product.version);
+    if (existing?.status === 'cancelled') throw new Error('Ошибка этой версии уже отменена. Проверьте актуальную версию карточки.');
+    if (existing?.ticketId && original.tickets.some(t => t.id === existing.ticketId)) return original;
+    const queued = applyAction(original, { type: 'create_ticket', kind: 'description', productIds: [product.id], source: action.source, description: action.reason }, now, actorId);
+    const ticketId = queued.tickets[0].id;
+    const confirmed = applyAction(queued, { type: 'mark_error', productId: product.id, ticketId, reason: action.reason, critical: action.critical }, now, actorId);
+    const issue = confirmed.issues.find(i => i.productId === product.id && i.version === product.version)!;
+    const ticket = confirmed.tickets.find(t => t.id === ticketId)!;
+    issue.ticketId = ticketId;
+    ticket.qualityIssueId = issue.id;
+    history(confirmed, ticket, now, actorId, `Менеджер подтвердил ошибку ${issue.id}: версия v${issue.version}, автор ${ACTORS.find(a => a.id === issue.authorId)?.name}. Штраф качества ${issue.penaltyPP} п.п. применён сразу; исправление направлено в Content AplTech.`);
+    return confirmed;
+  }
   const state: DemoState = structuredClone(original);
   state.revision++;
   checkSla(state, now);

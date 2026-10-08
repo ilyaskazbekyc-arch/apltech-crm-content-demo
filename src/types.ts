@@ -1,5 +1,5 @@
 export type Role = 'manager' | 'specialist' | 'lead';
-export type View = 'products' | 'tickets' | 'analytics' | 'settings';
+export type View = 'products' | 'tickets' | 'bulk' | 'analytics' | 'settings';
 export type Priority = 'Critical' | 'High' | 'Normal' | 'Low';
 export type Complexity = 'easy' | 'medium' | 'complex';
 export type RequestKind = 'image' | 'description' | 'remove-distributor' | 'split' | 'publish';
@@ -14,7 +14,7 @@ export interface Ticket {
   assigneeId?: string; acknowledgedBy: string[]; claimCycleStartedAt: number; firstClaimedAt?: number; claimedAt?: number;
   responseBreached: boolean; executionBreached: boolean; originalDueAt?: number; dueAt?: number; pauses: Pause[];
   batch: boolean; items: BatchItem[]; delay?: { at: number; newDueAt: number; reason: string; eligible: boolean };
-  managerQuestion?: string; managerReply?: string; completedAt?: number; history: HistoryEvent[];
+  qualityIssueId?: string; managerQuestion?: string; managerReply?: string; completedAt?: number; history: HistoryEvent[];
 }
 export interface Operation { id: string; ticketId?: string; productIds: string[]; authorId: string; at: number; baseWU: number; multiplier: number; totalWU: number; source: 'plan' | 'request'; ruleSnapshot: string }
 export interface QualityIssue { id: string; productId: string; ticketId?: string; authorId: string; reporterId: string; at: number; version: number; reason: string; penaltyPP: number; critical: boolean; status: 'active' | 'appealed' | 'cancelled'; appeal?: string }
@@ -23,6 +23,7 @@ export interface Notification { id: string; recipientId: string; at: number; tit
 export interface Settings { responseMinutes: number; warningMinutes: number; executionMinutes: number; slaBonus: number; slaPenaltyPP: number; qualityPenaltyPP: number; targetWU: number; workedDays: number; productivityCap: number; criticalGate: number; newProductPriority: Priority; priorityRates: Record<Priority,number>; complexityRates: Record<Complexity,number>; requestWeights: Record<RequestKind,number>; holidays: string[] }
 export interface DemoState { schema: 1; revision: number; products: Product[]; tickets: Ticket[]; operations: Operation[]; issues: QualityIssue[]; slaPenalties: SlaPenalty[]; notifications: Notification[]; settings: Settings }
 export type Action =
+ | { type: 'create_error_ticket'; productId: string; reason: string; source: string; critical?: boolean }
  | { type: 'create_ticket'; kind: RequestKind; productIds: string[]; source: string; description: string; newProduct?: {partNumber:string;source:string;name?:string} }
  | { type: 'ack_ticket'; ticketId: string }
  | { type: 'claim_ticket'; ticketId: string; promisedDueAt?: number }
@@ -44,4 +45,4 @@ export type Action =
  | { type: 'tick' };
 export interface EmployeeMetrics { actorId: string; planWU: number; cardWU: number; requestWU: number; qualityPP: number; slaPP: number; kpi: number; completed: number }
 export interface Analytics { planWU: number; cardWU: number; requestWU: number; totalWU: number; qualityPP: number; slaPP: number; kpi: number; completed: number; errors: number; responseOnTime: number; responseTotal: number; executionOnTime: number; executionTotal: number; employees: EmployeeMetrics[] }
-export interface ScreenProps { state: DemoState; actor: Actor; now: number; dispatch: (action: Action) => boolean; openTicket: (id:string) => void; openProduct: (id:string) => void; requestProduct: (id:string) => void }
+export interface ScreenProps { state: DemoState; actor: Actor; now: number; dispatch: (action: Action) => boolean; openTicket: (id:string) => void; openProduct: (id:string) => void; requestProduct: (id:string) => void; reportProductError: (id:string) => void }
