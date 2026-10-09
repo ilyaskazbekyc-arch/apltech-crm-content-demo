@@ -9,7 +9,7 @@ export const EMPTY_QUERY:CatalogQuery={text:'',exact:false,area:'',category:'',s
 export function filterProducts(products:Product[],q:CatalogQuery,now:number){
  const text=q.text.trim().toLocaleLowerCase('ru-RU');
  return products.filter(p=>{
-   const terms=[p.name,p.partNumber,p.id,String(Number(p.id)+100000),catalogValue(p,'vendor')].map(v=>v.toLocaleLowerCase('ru-RU'));
+   const terms=[p.name,p.description,catalogValue(p,'model'),p.partNumber,p.id,String(Number(p.id)+100000),catalogValue(p,'vendor')].map(v=>v.toLocaleLowerCase('ru-RU'));
    if(text&&(q.exact?!terms.some(v=>v===text):!text.split(/\s+/).every(token=>terms.some(v=>v.includes(token)))))return false;
    if(q.area&&catalogValue(p,'area')!==q.area||q.category&&catalogValue(p,'category')!==q.category||q.status&&publication(p)!==q.status||q.vendors.length&&!q.vendors.includes(catalogValue(p,'vendor')))return false;
    if(q.from&&p.price<Number(q.from)||q.to&&p.price>Number(q.to))return false;
