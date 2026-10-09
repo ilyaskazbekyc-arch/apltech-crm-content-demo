@@ -26,6 +26,7 @@ export function ProductPdp(props:ScreenProps & {productId:string;onClose:()=>voi
   const [extraDistrs,setExtraDistrs]=useState<Array<{name:string;price:string;stock:string;reserve:string;await:string;exchange:string;article:string}>>(()=>{try{return JSON.parse(String(product.pdp?.distributors||'[]'))}catch{return []}});
   const [leaving,setLeaving]=useState<null|(()=>void)>(null);
   useEffect(()=>{window.scrollTo({top:0,behavior:'instant'})},[props.productId]);
+  useEffect(()=>{setData({...defaults,...product.pdp});setName(product.name);setDescription(product.description);setSupplier(product.supplier);setImage(product.image);setPrice(String(product.price));setStock(String(product.stock));setPublished(product.published)},[product.version]);
   const editable=props.actor.role==='specialist';
   const tickets=props.state.tickets.filter(t=>t.productIds.includes(product.id)&&t.status!=='completed');
   const batch=tickets.find(t=>t.batch&&t.status==='in_progress'&&t.assigneeId===props.actor.id);
@@ -62,4 +63,3 @@ export function ProductPdp(props:ScreenProps & {productId:string;onClose:()=>voi
     {leaving&&<div className="crm-modal-overlay"><section className="crm-modal" role="dialog" aria-label="Несохранённые изменения"><h2>Есть несохранённые изменения</h2><p>Сохраните карточку перед переходом или продолжите без сохранения.</p><div className="crm-form-actions"><button className="crm-btn crm-btn-soft" onClick={()=>setLeaving(null)}>Остаться</button><button className="crm-btn crm-btn-primary" onClick={()=>{leaving();setLeaving(null)}}>Перейти без сохранения</button></div></section></div>}
   </>;
 }
-
