@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Complexity, Priority, Product, ScreenProps } from './types';
 import { ACTORS } from './seed';
+import { CatalogFilters } from './CatalogFilters';
+import { EMPTY_QUERY,filterProducts,catalogValue,publication } from './catalog';
 import { formatDate, getProductBaseWU } from './engine';
 
 const PRIORITIES: Priority[] = ['Critical', 'High', 'Normal', 'Low'];
@@ -35,35 +37,39 @@ function EditIcon() {
   return <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m14 4 6 6M4 20l5-1 12-12a2.2 2.2 0 0 0-3-3L6 16l-2 4Z"/><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7"/></svg>;
 }
 
-export function ProductList(props: ScreenProps & { createProduct: () => void; selectedIds: string[]; onSelection: (ids: string[]) => void; bulkPriority: () => void; createRequest: () => void }) {
+export function ProductList(props: ScreenProps & { createProduct: () => void; selectedIds: string[]; onSelection: (ids: string[]) => void; bulkPriority: () => void; createRequest: () => void; editSelection:()=>void }) {
   const { state, actor, selectedIds, onSelection } = props;
-  const allSelected = state.products.length > 0 && state.products.every(product => selectedIds.includes(product.id));
+  const [query,setQuery]=useState({...EMPTY_QUERY});
+  const [descriptionId,setDescriptionId]=useState<string|null>(null);
+  const visible=filterProducts(state.products,query,props.now);
+  const allSelected = visible.length > 0 && visible.every(product => selectedIds.includes(product.id));
   const toggle = (id: string) => onSelection(selectedIds.includes(id) ? selectedIds.filter(value => value !== id) : [...selectedIds, id]);
   const openCount = state.tickets.filter(ticket => ticket.status !== 'completed').length;
   return <>
     <div className="crm-title-line"><h1>Товары</h1><div className="crm-title-actions">
       {actor.role === 'manager' && <button className="crm-btn crm-btn-primary" onClick={props.createRequest}>Новый запрос{selectedIds.length>1?' · '+selectedIds.length+' товаров':''}</button>}
       {actor.role === 'lead' && <button className="crm-btn crm-btn-soft" onClick={props.bulkPriority} disabled={selectedIds.length === 0}>Изменить приоритет</button>}
-      {actor.role === 'specialist' && <button className="crm-btn crm-btn-primary" onClick={props.createProduct}>Добавить товар</button>}
+      {actor.role === 'specialist' && <><button className="crm-btn crm-btn-primary" onClick={props.createProduct}>Создать товар</button><button className="crm-btn crm-btn-soft" disabled={!selectedIds.length} onClick={props.editSelection}>Редактировать поэтапно · {selectedIds.length}</button></>}
     </div></div>
+    <CatalogFilters products={state.products} value={query} onChange={setQuery}/>
     <div className="crm-panel crm-panel-pad">
-      <div className="crm-table-toolbar"><div className="crm-list-summary"><span>Всего: <strong>{state.products.length}</strong></span><span>Опубликовано: <strong>{state.products.filter(product => product.published).length}</strong></span><span>Открытых запросов: <strong>{openCount}</strong></span></div><span className="crm-product-count">Демонстрационный каталог</span></div>
+      <div className="crm-table-toolbar"><div className="crm-list-summary"><span>Показаны записи <strong>{visible.length?1:0}–{visible.length}</strong> из <strong>{visible.length}</strong> · всего {state.products.length}</span><span>Опубликовано: <strong>{state.products.filter(product => product.published).length}</strong></span><span>Открытых запросов: <strong>{openCount}</strong></span></div><label className="crm-small">Сортировка <select aria-label="Сортировка товаров" value={query.sort} onChange={e=>setQuery({...query,sort:e.target.value})}><option value="default">По умолчанию</option><option value="priceAsc">Цена ↑</option><option value="priceDesc">Цена ↓</option><option value="name">Наименование</option></select></label></div>
       {selectedIds.length > 0 && <div className="crm-selection-bar"><strong className="crm-small">Выбрано товаров: {selectedIds.length}</strong><button className="crm-link crm-small" onClick={() => onSelection([])}>Снять выделение</button>{actor.role === 'manager' && <span className="crm-small crm-muted">«Новый запрос» в верхней панели создаст один запрос на выбранный список.</span>}{actor.role === 'lead' && <span className="crm-small crm-muted">Приоритет сразу обновится во всех открытых запросах этих товаров.</span>}</div>}
       <div className="crm-table-wrap"><table className="crm-table crm-product-table"><colgroup><col style={{ width: '44px' }}/><col style={{ width: '32%' }}/><col style={{ width: '22%' }}/><col style={{ width: '11%' }}/><col style={{ width: '20%' }}/><col style={{ width: '15%' }}/></colgroup>
-        <thead><tr><th><input className="crm-checkbox" type="checkbox" checked={allSelected} aria-label="Выбрать все товары" onChange={() => onSelection(allSelected ? [] : state.products.map(product => product.id))}/></th><th>Наименование товара</th><th>Информация о поставщике</th><th>Цена</th><th>Контент / KPI</th><th>Действия</th></tr></thead>
-        <tbody>{state.products.map((product, index) => {
+        <thead><tr><th><input className="crm-checkbox" type="checkbox" checked={allSelected} aria-label="Выбрать все товары" onChange={() => onSelection(allSelected ? selectedIds.filter(id=>!visible.some(p=>p.id===id)) : [...new Set([...selectedIds,...visible.map(p=>p.id)])])}/></th><th>Наименование товара</th><th>Информация о поставщике</th><th>Цена</th><th>Контент / KPI</th><th>Действия</th></tr></thead>
+        <tbody>{visible.map((product, index) => {
           const related = state.tickets.filter(ticket => ticket.productIds.includes(product.id) && ticket.status !== 'completed');
           const errors = state.issues.filter(issue => issue.productId === product.id && issue.status !== 'cancelled');
           return <tr key={product.id} className={selectedIds.includes(product.id) ? 'selected' : ''}>
             <td><input className="crm-checkbox" type="checkbox" checked={selectedIds.includes(product.id)} aria-label={`Выбрать ${product.partNumber}`} onChange={() => toggle(product.id)}/><div className="crm-tiny crm-muted crm-mt16">{index + 1}</div></td>
-            <td><div className="crm-product-ident"><ProductImage product={product} className="crm-product-thumb"/><div className="crm-product-copy"><button className="crm-link crm-product-name" onClick={() => props.openProduct(product.id)}>{product.name}</button><div className="crm-product-pn">pn: {product.partNumber}</div><div className="crm-flex crm-wrap"><span className={`crm-tag crm-status-pill ${product.published ? 'crm-tag-success' : ''}`}>{product.published ? 'Опубликован' : 'Черновик'}</span>{errors.length > 0 && <span className="crm-tag crm-tag-error">Ошибка</span>}</div></div></div></td>
-            <td><table className="crm-supplier-grid"><thead><tr><th>Поставщик</th><th>Нал.</th><th>Рез.</th></tr></thead><tbody><tr><td>{product.supplier || 'Не указан'}</td><td>{product.stock}</td><td>0</td></tr></tbody></table><div className="crm-tiny crm-muted crm-mt8">{formatDate(product.lastEditedAt)}</div></td>
+            <td><div className="crm-product-ident"><ProductImage product={product} className="crm-product-thumb"/><div className="crm-product-copy"><button className="crm-link crm-product-name" onClick={() => props.openProduct(product.id)}>{product.name}</button><div className="crm-product-pn">pn: {product.partNumber} <button className="crm-link" aria-label={"Скопировать партномер "+product.partNumber} onClick={()=>navigator.clipboard.writeText(product.partNumber)}>⧉</button></div><p className="crm-tiny crm-muted">{catalogValue(product,"area")} › {catalogValue(product,"category")} · {catalogValue(product,"vendor")}</p><button className="crm-link crm-small" onClick={()=>setDescriptionId(descriptionId===product.id?null:product.id)}>Описание</button>{descriptionId===product.id&&<p className="crm-small">{product.description}</p>}<div className="crm-flex crm-wrap"><span className={`crm-tag crm-status-pill ${product.published ? 'crm-tag-success' : ''}`}>{publication(product)}</span>{errors.length > 0 && <span className="crm-tag crm-tag-error">Ошибка</span>}</div></div></div></td>
+            <td><table className="crm-supplier-grid"><thead><tr><th>Поставщик</th><th>Нал.</th><th>Рез.</th><th>Ожид.</th><th>Входная</th></tr></thead><tbody><tr><td>{product.supplier || 'Не указан'}</td><td>{product.stock}</td><td>{String(product.pdp?.reserve??0)}</td><td>{String(product.pdp?.await??0)}</td><td>{money(Number(product.pdp?.incomingPrice??product.price/1.14))}</td></tr></tbody></table><div className="crm-tiny crm-muted crm-mt8">{formatDate(product.lastEditedAt)}</div></td>
             <td><span className="crm-tiny crm-muted">Стандартная</span><br/><span className="crm-product-price">{money(product.price)} ₸</span></td>
             <td><div className="crm-product-content"><PriorityTag value={product.priority}/><span className="crm-small">{wu(getProductBaseWU(product, state.settings))} WU <span className="crm-muted">· {COMPLEXITIES[product.complexity]}</span></span><span className="crm-tiny crm-muted">{actorName(product.lastEditorId)} · v{product.version}</span>{related.length > 0 ? <button className="crm-link crm-tiny" onClick={() => props.openTicket(related[0].id)}>{related[0].id} · {STATUS_NAMES[related[0].status]}{related.length > 1 ? ` +${related.length - 1}` : ''}</button> : <span className="crm-tiny crm-muted">Нет открытых запросов</span>}</div></td>
             <td><div className="crm-product-actions"><button className="crm-btn crm-btn-soft crm-btn-sm" onClick={() => props.openProduct(product.id)}>Карточка</button>{actor.role === 'manager' && <button className="crm-link crm-small" onClick={() => props.requestProduct(product.id)}>Создать запрос</button>}{actor.role === 'manager' && <button className="crm-link crm-small" onClick={() => props.reportProductError(product.id)}>Подтвердить ошибку</button>}{actor.role === 'specialist' && <button className="crm-link crm-small" onClick={() => props.openProduct(product.id)}>Редактировать</button>}</div></td>
           </tr>;
         })}</tbody>
-      </table></div>
+      </table>{!visible.length&&<p className="crm-muted crm-panel-pad" role="status">По выбранным фильтрам товары не найдены.</p>}</div>
     </div>
     <div className="crm-footer">CRM AplTech Казахстан (1.00) © 2026</div>
   </>;

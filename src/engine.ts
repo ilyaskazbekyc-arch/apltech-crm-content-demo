@@ -1,3 +1,4 @@
+import {suppliers} from './catalog';
 import type { Action, Actor, Analytics, DemoState, Notification, Operation, Product, Settings, Ticket } from './types';
 import { ACTORS } from './seed';
 
@@ -249,7 +250,7 @@ export function applyAction(original: DemoState, action: Action, now: number, ac
       assigned(ticket);
       if (!ticket.productIds.length) throw new Error('Создайте карточку нового товара и свяжите её с запросом.');
       if (ticket.kind === 'split' && ticket.productIds.length !== 2) throw new Error('Создайте связанную новую карточку для разъединения товара.');
-      if (ticket.kind === 'remove-distributor' && ticket.productIds.some(id => getProduct(id).supplier.trim())) throw new Error('Сначала удалите дистрибьютора из карточки товара.');
+      if (ticket.kind === 'remove-distributor' && ticket.productIds.some(id => suppliers(getProduct(id)).length>0)) throw new Error('Сначала удалите дистрибьютора из карточки товара.');
       ticket.productIds.map(getProduct).forEach((p, index) => mandatoryProduct(p, ticket.kind, ticket.kind === 'split' && index === 0));
       if (ticket.batch && ticket.items.some(i => !i.completedAt)) throw new Error('Сначала отметьте все карточки списка выполненными.');
       const sla = getTicketSla(ticket, state, now);

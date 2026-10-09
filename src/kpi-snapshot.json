@@ -1,0 +1,279 @@
+{
+  "source": "https://content-kpi-platform.vercel.app/",
+  "capturedAt": "2026-10-09T06:01:30.207Z",
+  "period": "01.09.2026 — 06.10.2026",
+  "from": "2026-09-01",
+  "to": "2026-10-06",
+  "summary": {
+    "kpi": 78.1,
+    "cards": 3653,
+    "weighted": 6551.8,
+    "perPersonDay": 128.5,
+    "errors": 3,
+    "requests": 140,
+    "completedRequests": 140,
+    "requestWeighted": 109.5,
+    "days": 51
+  },
+  "employees": [
+    {
+      "name": "Айбол",
+      "days": 25,
+      "cards": 1820,
+      "weighted": 3266.8,
+      "completed": 66,
+      "requests": 66,
+      "errors": 3,
+      "kpi": 79.3
+    },
+    {
+      "name": "Роман",
+      "days": 26,
+      "cards": 1628,
+      "weighted": 2943.8,
+      "completed": 74,
+      "requests": 74,
+      "errors": 0,
+      "kpi": 77.1
+    }
+  ],
+  "daily": [
+    {
+      "cards": 122,
+      "day": "1 сент.",
+      "errors": 0,
+      "requests": 0,
+      "weighted": 268.8
+    },
+    {
+      "cards": 136,
+      "day": "2 сент.",
+      "errors": 0,
+      "requests": 0,
+      "weighted": 300.8
+    },
+    {
+      "cards": 96,
+      "day": "3 сент.",
+      "errors": 0,
+      "requests": 0,
+      "weighted": 262.5
+    },
+    {
+      "cards": 147,
+      "day": "4 сент.",
+      "errors": 0,
+      "requests": 0,
+      "weighted": 304.8
+    },
+    {
+      "cards": 159,
+      "day": "7 сент.",
+      "errors": 0,
+      "requests": 0,
+      "weighted": 276.5
+    },
+    {
+      "cards": 174,
+      "day": "8 сент.",
+      "errors": 0,
+      "requests": 5,
+      "weighted": 272
+    },
+    {
+      "cards": 145,
+      "day": "9 сент.",
+      "errors": 0,
+      "requests": 3,
+      "weighted": 261.5
+    },
+    {
+      "cards": 165,
+      "day": "10 сент.",
+      "errors": 0,
+      "requests": 2,
+      "weighted": 334.8
+    },
+    {
+      "cards": 207,
+      "day": "11 сент.",
+      "errors": 0,
+      "requests": 9,
+      "weighted": 319
+    },
+    {
+      "cards": 170,
+      "day": "14 сент.",
+      "errors": 1,
+      "requests": 1,
+      "weighted": 325.8
+    },
+    {
+      "cards": 150,
+      "day": "15 сент.",
+      "errors": 0,
+      "requests": 6,
+      "weighted": 300
+    },
+    {
+      "cards": 87,
+      "day": "16 сент.",
+      "errors": 0,
+      "requests": 5,
+      "weighted": 165
+    },
+    {
+      "cards": 149,
+      "day": "17 сент.",
+      "errors": 1,
+      "requests": 2,
+      "weighted": 291.5
+    },
+    {
+      "cards": 152,
+      "day": "18 сент.",
+      "errors": 0,
+      "requests": 4,
+      "weighted": 229
+    },
+    {
+      "cards": 154,
+      "day": "21 сент.",
+      "errors": 0,
+      "requests": 14,
+      "weighted": 267.8
+    },
+    {
+      "cards": 133,
+      "day": "22 сент.",
+      "errors": 0,
+      "requests": 7,
+      "weighted": 214.3
+    },
+    {
+      "cards": 137,
+      "day": "23 сент.",
+      "errors": 0,
+      "requests": 32,
+      "weighted": 184.5
+    },
+    {
+      "cards": 136,
+      "day": "24 сент.",
+      "errors": 0,
+      "requests": 7,
+      "weighted": 240.8
+    },
+    {
+      "cards": 150,
+      "day": "25 сент.",
+      "errors": 0,
+      "requests": 7,
+      "weighted": 272
+    },
+    {
+      "cards": 134,
+      "day": "28 сент.",
+      "errors": 1,
+      "requests": 6,
+      "weighted": 225.8
+    },
+    {
+      "cards": 148,
+      "day": "29 сент.",
+      "errors": 1,
+      "requests": 4,
+      "weighted": 251
+    },
+    {
+      "cards": 194,
+      "day": "30 сент.",
+      "errors": 0,
+      "requests": 10,
+      "weighted": 271.3
+    },
+    {
+      "cards": 146,
+      "day": "1 окт.",
+      "errors": 0,
+      "requests": 6,
+      "weighted": 254
+    },
+    {
+      "cards": 116,
+      "day": "2 окт.",
+      "errors": 0,
+      "requests": 2,
+      "weighted": 212.5
+    },
+    {
+      "cards": 146,
+      "day": "5 окт.",
+      "errors": 0,
+      "requests": 12,
+      "weighted": 246.3
+    },
+    {
+      "cards": 2,
+      "day": "6 окт.",
+      "errors": 0,
+      "requests": 3,
+      "weighted": 0
+    }
+  ],
+  "difficulty": [
+    {
+      "name": "Средние",
+      "share": 43,
+      "value": 2816.3
+    },
+    {
+      "name": "Сложные",
+      "share": 40.3,
+      "value": 2642
+    },
+    {
+      "name": "Легкие",
+      "share": 16.7,
+      "value": 1093.5
+    }
+  ],
+  "priority": [
+    {
+      "name": "Critical",
+      "share": 0
+    },
+    {
+      "name": "High",
+      "share": 49.5
+    },
+    {
+      "name": "Normal",
+      "share": 50.5
+    },
+    {
+      "name": "Low",
+      "share": 0
+    }
+  ],
+  "requestDifficulty": [
+    {
+      "name": "Лёгкие",
+      "value": 90,
+      "share": 61.2,
+      "weight": 0.5
+    },
+    {
+      "name": "Средние",
+      "value": 31,
+      "share": 21.1,
+      "weight": 1
+    },
+    {
+      "name": "Сложные",
+      "value": 26,
+      "share": 17.7,
+      "weight": 1.5
+    }
+  ]
+}
