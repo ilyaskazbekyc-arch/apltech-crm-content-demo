@@ -311,12 +311,13 @@ export function applyAction(original: DemoState, action: Action, now: number, ac
     case 'edit_product': {
       requireRole(actor, ['specialist']);
       const product = getProduct(action.productId);
-      const changed = Object.entries(action.changes).some(([key, value]) => product[key as keyof Product] !== value);
+      const changed = Object.entries(action.changes).some(([key, value]) => JSON.stringify(product[key as keyof Product]) !== JSON.stringify(value));
       if (!changed) {
         if (action.countPlan) throw new Error('Измените контент для завершения плановой работы.');
         break;
       }
       if (action.changes.name !== undefined) required(action.changes.name, 'Название');
+      for (const key of ['price', 'stock'] as const) if (action.changes[key] !== undefined && (!Number.isFinite(action.changes[key]) || action.changes[key]! < 0)) throw new Error('Цена и остаток должны быть неотрицательными числами.');
       Object.assign(product, action.changes, { lastEditorId: actorId, lastEditedAt: now, version: product.version + 1 });
       const activeRequest = state.tickets.some(t => t.productIds.includes(product.id) && t.status !== 'completed');
       if (action.countPlan && activeRequest) throw new Error('Карточка участвует в запросе: WU начислится за запрос один раз.');

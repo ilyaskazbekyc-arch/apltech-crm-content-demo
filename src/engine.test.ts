@@ -284,3 +284,22 @@ describe('Подтверждение ошибки через тикет', () => 
     expect(getAnalytics(state).qualityPP).toBe(3);
   });
 });
+
+
+describe('Сохранение полной PDP', () => {
+  it('сохраняет расширенные поля, цену и остатки; повторное сохранение не меняет версию и не начисляет WU', () => {
+    const before=fresh();
+    const action={type:'edit_product' as const,productId:'526005',changes:{price:2500,stock:7,pdp:{vendor:'Brother',weight:'0.2',warranty:'1 год',formatted:'Описание для сайта'}}};
+    const state=applyAction(before,action,start,'specialist1');
+    const product=state.products.find(p=>p.id==='526005')!;
+    expect(product.pdp?.warranty).toBe('1 год');
+    expect(product.price).toBe(2500);
+    expect(product.stock).toBe(7);
+    expect(product.lastEditorId).toBe('specialist1');
+    expect(product.version).toBe(13);
+    const repeated=applyAction(state,action,start+minute,'specialist1');
+    expect(repeated.products.find(p=>p.id==='526005')!.version).toBe(13);
+    expect(repeated.operations).toHaveLength(0);
+    expect(()=>applyAction(before,{...action,changes:{price:-1}},start,'specialist1')).toThrow('неотрицательными');
+  });
+});

@@ -4,7 +4,7 @@ export type Priority = 'Critical' | 'High' | 'Normal' | 'Low';
 export type Complexity = 'easy' | 'medium' | 'complex';
 export type RequestKind = 'image' | 'description' | 'remove-distributor' | 'split' | 'publish';
 export interface Actor { id: string; name: string; role: Role }
-export interface Product { id: string; name: string; partNumber: string; description: string; image: string; price: number; supplier: string; stock: number; priority: Priority; complexity: Complexity; lastEditorId: string; lastEditedAt: number; version: number; published: boolean; weightOverride?: number; splitFromId?: string; splitChildIds?: string[] }
+export interface Product { id: string; name: string; partNumber: string; description: string; image: string; price: number; supplier: string; stock: number; priority: Priority; complexity: Complexity; lastEditorId: string; lastEditedAt: number; version: number; published: boolean; pdp?: Record<string,string|boolean>; weightOverride?: number; splitFromId?: string; splitChildIds?: string[] }
 export interface HistoryEvent { id: string; at: number; actorId: string; text: string }
 export interface Pause { start: number; end?: number; reason: string }
 export interface BatchItem { productId: string; completedAt?: number; authorId?: string }
@@ -33,7 +33,7 @@ export type Action =
  | { type: 'manager_reply'; ticketId: string; reply: string }
  | { type: 'report_delay'; ticketId: string; reason: string; newDueAt: number }
  | { type: 'reopen_ticket'; ticketId: string; reason: string }
- | { type: 'edit_product'; productId: string; changes: Partial<Pick<Product,'name'|'description'|'image'|'supplier'|'published'|'complexity'>>; countPlan?: boolean }
+ | { type: 'edit_product'; productId: string; changes: Partial<Pick<Product,'name'|'description'|'image'|'supplier'|'published'|'complexity'|'price'|'stock'|'pdp'>>; countPlan?: boolean }
  | { type: 'create_product'; name: string; partNumber: string; description: string; source: string; ticketId?: string; complexity: Complexity; publishNow?: boolean; countPlan?: boolean }
  | { type: 'set_priority'; productIds: string[]; priority: Priority; reason: string }
  | { type: 'set_weight'; productId: string; weight?: number; reason: string }
