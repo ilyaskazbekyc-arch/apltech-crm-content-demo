@@ -30,7 +30,7 @@ function route(){const [path,query='']=location.hash.slice(1).split('?');const [
 const nav=[{id:'products' as View,label:'Товары',icon:Package},{id:'tickets' as View,label:'Тикеты',icon:ClipboardList},{id:'mail' as View,label:'Почта',icon:Mail},{id:'analytics' as View,label:'KPI и аналитика',icon:BarChart3},{id:'settings' as View,label:'Настройки',icon:Settings}];
 
 export default function App(){
- useEffect(()=>{let icon=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!icon){icon=document.createElement('link');icon.rel='icon';document.head.appendChild(icon)}icon.type='image/png';icon.href='/favicon-test.png?v=green-test-large-1'},[]);
+ useEffect(()=>{let icon=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!icon){icon=document.createElement('link');icon.rel='icon';document.head.appendChild(icon)}icon.type='image/png';icon.href='/favicon-test-red.png?v=solid-red-test-1'},[]);
  const [clock,setClock]=useState<DemoClock>(()=>read<DemoState>(STORE)?.ticketWorkspaceVersion===TICKET_WORKSPACE_VERSION?(read<DemoClock>(CLOCK)||{base:DEMO_START,wall:Date.now()}):{base:DEMO_START,wall:Date.now()});
  const clockRef=useRef(clock);clockRef.current=clock;
  const [now,setNow]=useState(()=>clockNow(clock));
