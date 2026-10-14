@@ -1,5 +1,5 @@
 export type Role = 'manager' | 'specialist' | 'lead';
-export type View = 'products' | 'tickets' | 'bulk' | 'analytics' | 'settings';
+export type View = 'products' | 'tickets' | 'bulk' | 'analytics' | 'settings' | 'mail';
 export type Priority = 'Critical' | 'High' | 'Normal' | 'Low';
 export type Complexity = 'easy' | 'medium' | 'complex';
 export type RequestKind = 'image' | 'description' | 'remove-distributor' | 'split' | 'publish';
