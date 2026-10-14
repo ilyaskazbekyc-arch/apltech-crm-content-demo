@@ -1,30 +1,16 @@
 import { useState } from 'react';
-import { Check, Layers } from 'lucide-react';
+import { Check } from 'lucide-react';
 import type { ScreenProps } from './types';
-import { ACTORS } from './seed';
-import { formatDate, getProductBaseWU } from './engine';
-import { number } from './ui-utils';
-import { CatalogFilters } from './CatalogFilters';
-import { EMPTY_QUERY,filterProducts } from './catalog';
 import { ProductPdp } from './ProductPdp';
 
-export function BulkEditor(props: ScreenProps & { initialIds?: string[]; createRequest: (ids: string[]) => void }) {
-  const [selected, setSelected] = useState<string[]>(props.initialIds ?? []);
-  const [query,setQuery]=useState({...EMPTY_QUERY});
-  const visible=filterProducts(props.state.products,query,props.now);
-  const [editing, setEditing] = useState(false);
+export function BulkEditor(props: ScreenProps & { initialIds?: string[]; onClose: () => void }) {
+  const [selected, setSelected] = useState<string[]>(() => [...new Set(props.initialIds ?? [])]);
   const [index, setIndex] = useState(0);
   const [saved, setSaved] = useState<string[]>([]);
   const [skipped, setSkipped] = useState<string[]>([]);
   const ids = selected.filter(id => props.state.products.some(p => p.id === id));
   const product = props.state.products.find(p => p.id === ids[index]);
-  function begin() { setSaved([]); setSkipped([]); setIndex(0); setEditing(true); }
-  if (!editing) return <>
-    <div className="crm-title-row"><div><h1>Массовое редактирование</h1><p className="crm-small crm-muted">Выберите несколько карточек и обработайте их по очереди.</p></div><span className="crm-tag">{ids.length} выбрано</span></div>
-    <div className="crm-bulk-toolbar crm-panel crm-panel-pad"><div className="crm-flex crm-wrap"><button className="crm-btn crm-btn-soft" onClick={() => setSelected(visible.length>0 && visible.every(p=>ids.includes(p.id)) ? [] : [...new Set([...ids,...visible.map(p=>p.id)])])}>{visible.length>0 && visible.every(p=>ids.includes(p.id)) ? 'Снять выделение' : 'Выбрать все'}</button>{props.actor.role === 'specialist' && <button className="crm-btn crm-btn-primary" disabled={!ids.length} onClick={begin}><Layers size={16}/>Редактировать поэтапно · {ids.length}</button>}{props.actor.role === 'manager' && <button className="crm-btn crm-btn-primary" disabled={!ids.length} onClick={() => props.createRequest(ids)}>Создать тикет на выбранные</button>}</div><p className="crm-small crm-muted">{props.actor.role === 'specialist' ? 'Каждая карточка сохраняется отдельно. Можно пропустить товар и вернуться к нему.' : props.actor.role === 'manager' ? 'Менеджер выбирает список и передаёт его специалисту через общий тикет.' : 'Редактирование контента доступно специалистам. Приоритеты и веса меняются в карточке товара.'}</p></div>
-    <CatalogFilters products={props.state.products} value={query} onChange={setQuery}/>
-    <section className="crm-panel crm-panel-pad"><div className="crm-table-wrap"><table className="crm-table"><thead><tr><th><input type="checkbox" aria-label="Выбрать все карточки для редактирования" checked={ids.length > 0 && visible.length>0 && visible.every(p=>ids.includes(p.id))} onChange={e => setSelected(e.target.checked ? [...new Set([...ids,...visible.map(p=>p.id)])] : ids.filter(id=>!visible.some(p=>p.id===id)))}/></th><th>Карточка товара</th><th>Приоритет / вес</th><th>Последний автор</th><th>Запрос</th></tr></thead><tbody>{visible.map(p => { const ticket = props.state.tickets.find(t => t.productIds.includes(p.id) && t.status !== 'completed'); return <tr key={p.id} className={ids.includes(p.id) ? 'crm-bulk-selected' : ''}><td><input type="checkbox" aria-label={'Выбрать для редактирования ' + p.partNumber} checked={ids.includes(p.id)} onChange={e => setSelected(e.target.checked ? [...selected, p.id] : selected.filter(id => id !== p.id))}/></td><td><div className="crm-flex"><img src={p.image} alt="" className="crm-bulk-thumb"/><div><button className="crm-link" onClick={() => props.openProduct(p.id)}>{p.partNumber}</button><p className="crm-small">{p.name}</p><span className="crm-small crm-muted">Product ID {p.id}</span></div></div></td><td><span className="crm-tag">{p.priority}</span><p className="crm-small">{number(getProductBaseWU(p, props.state.settings))} WU</p></td><td><div>{ACTORS.find(a => a.id === p.lastEditorId)?.name}</div><span className="crm-small crm-muted">v{p.version} · {formatDate(p.lastEditedAt)}</span></td><td>{ticket ? <button className="crm-link" onClick={() => props.openTicket(ticket.id)}>{ticket.id}</button> : <span className="crm-muted">Плановая работа</span>}</td></tr>; })}</tbody></table></div></section>
-  </>;
-  if (!product) return <section className="crm-panel crm-panel-pad crm-bulk-finish"><Check size={34}/><h1>Список обработан</h1><p>Сохранено: {saved.length} · Пропущено: {skipped.length}</p><p className="crm-small crm-muted">Карточки и авторы обновлены. Результаты запросов начисляются при завершении тикета.</p><div className="crm-flex crm-wrap">{skipped.length > 0 && <button className="crm-btn crm-btn-primary" onClick={() => { setSelected(skipped); setSkipped([]); setIndex(0); }}>Обработать пропущенные</button>}<button className="crm-btn crm-btn-soft" onClick={() => setEditing(false)}>Вернуться к списку</button></div></section>;
-  return <ProductPdp key={product.id} {...props} productId={product.id} onClose={()=>setEditing(false)} sequence={{index,total:ids.length,onPrevious:()=>setIndex(i=>i-1),onSkip:()=>{setSkipped(prev=>saved.includes(product.id)?prev:[...new Set([...prev,product.id])]);setIndex(i=>i+1)},onSaved:()=>{setSaved(prev=>[...new Set([...prev,product.id])]);setSkipped(prev=>prev.filter(id=>id!==product.id));setIndex(i=>i+1)}}}/>;
+  if (!ids.length) return <section className="crm-panel crm-panel-pad"><h1>Выберите товары</h1><p>Отметьте карточки в разделе «Товары» и нажмите «Массовое редактирование».</p><button className="crm-btn crm-btn-primary" onClick={props.onClose}>Вернуться к товарам</button></section>;
+  if (!product) return <section className="crm-panel crm-panel-pad crm-bulk-finish"><Check size={34}/><h1>Список обработан</h1><p>Сохранено: {saved.length} · Пропущено: {skipped.length}</p><div className="crm-flex crm-wrap">{skipped.length > 0 && <button className="crm-btn crm-btn-primary" onClick={() => { setSelected(skipped); setSkipped([]); setIndex(0); }}>Обработать пропущенные</button>}<button className="crm-btn crm-btn-soft" onClick={props.onClose}>Вернуться к товарам</button></div></section>;
+  return <ProductPdp key={product.id} {...props} productId={product.id} onClose={props.onClose} sequence={{index,total:ids.length,onPrevious:()=>setIndex(i=>i-1),onSkip:()=>{setSkipped(prev=>saved.includes(product.id)?prev:[...new Set([...prev,product.id])]);setIndex(i=>i+1)},onSaved:()=>{setSaved(prev=>[...new Set([...prev,product.id])]);setSkipped(prev=>prev.filter(id=>id!==product.id));setIndex(i=>i+1)}}}/>;
 }

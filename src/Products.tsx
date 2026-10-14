@@ -52,7 +52,7 @@ export function ProductList(props: ScreenProps & { createProduct: () => void; se
  {actor.role==='specialist'&&<button className="crm-btn crm-btn-primary" onClick={props.createProduct}>＋ Создать товар</button>}
  {actor.role==='manager'&&<button className="crm-btn crm-btn-primary" onClick={props.createRequest}>Создать запрос{selectedIds.length?' · '+selectedIds.length:''}</button>}
  {actor.role==='lead'&&<button className="crm-btn crm-btn-primary" disabled={!selectedIds.length} onClick={props.bulkPriority}>Изменить приоритет</button>}
- <button className="crm-btn crm-btn-soft" onClick={props.editSelection}>Массовое редактирование{selectedIds.length?' · '+selectedIds.length:''}</button>
+ <button className="crm-btn crm-btn-soft" disabled={!selectedIds.length} onClick={props.editSelection}>Массовое редактирование{selectedIds.length?' · '+selectedIds.length:''}</button>
  </>}/>
  <section className="crm-panel crm-panel-pad"><div className="crm-table-toolbar"><span className="crm-small">Показаны записи <b>{visible.length?(current-1)*perPage+1:0}–{Math.min(current*perPage,visible.length)}</b> из <b>{visible.length}</b>.</span><label className="crm-small">На странице <select aria-label="Товаров на странице" value={perPage} onChange={e=>{setPerPage(Number(e.target.value));setPage(1)}}>{[10,20,50].map(n=><option key={n}>{n}</option>)}</select></label></div>
  {selectedIds.length>0&&<div className="crm-selection-bar">Выбрано: {selectedIds.length} <button className="crm-link" onClick={()=>onSelection([])}>Снять выделение</button></div>}
