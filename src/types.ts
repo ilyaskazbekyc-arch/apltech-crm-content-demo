@@ -1,8 +1,8 @@
 export type Role = 'manager' | 'specialist' | 'lead';
-export type View = 'products' | 'tickets' | 'bulk' | 'analytics' | 'settings' | 'mail';
+export type View = 'products' | 'tickets' | 'bulk' | 'analytics' | 'settings' | 'mail' | 'instructions';
 export type Priority = 'Critical' | 'High' | 'Normal' | 'Low';
 export type Complexity = 'easy' | 'medium' | 'complex';
-export type RequestKind = 'image' | 'description' | 'remove-distributor' | 'split' | 'publish';
+export type RequestKind = 'image' | 'description' | 'remove-distributor' | 'split' | 'publish' | 'merge';
 export interface Actor { id: string; name: string; role: Role }
 export interface Product { id: string; name: string; partNumber: string; description: string; image: string; price: number; supplier: string; stock: number; priority: Priority; complexity: Complexity; lastEditorId: string; lastEditedAt: number; version: number; published: boolean; pdp?: Record<string,string|boolean>; weightOverride?: number; splitFromId?: string; splitChildIds?: string[] }
 export interface HistoryEvent { id: string; at: number; actorId: string; text: string }
@@ -23,6 +23,7 @@ export interface Notification { id: string; recipientId: string; at: number; tit
 export interface Settings { responseMinutes: number; warningMinutes: number; executionMinutes: number; slaBonus: number; slaPenaltyPP: number; qualityPenaltyPP: number; targetWU: number; workedDays: number; productivityCap: number; criticalGate: number; newProductPriority: Priority; priorityRates: Record<Priority,number>; complexityRates: Record<Complexity,number>; requestWeights: Record<RequestKind,number>; holidays: string[] }
 export interface DemoState { schema: 1; ticketWorkspaceVersion?: number; revision: number; products: Product[]; tickets: Ticket[]; operations: Operation[]; issues: QualityIssue[]; slaPenalties: SlaPenalty[]; notifications: Notification[]; settings: Settings }
 export type Action =
+ | { type: 'set_product_profile'; productId: string; priority: Priority; complexity: Complexity; reason: string }
  | { type: 'create_error_ticket'; productId: string; reason: string; source: string; critical?: boolean }
  | { type: 'create_ticket'; kind: RequestKind; productIds: string[]; source: string; description: string; newProduct?: {partNumber:string;source:string;name?:string} }
  | { type: 'ack_ticket'; ticketId: string }

@@ -51,6 +51,7 @@ export function getProductBaseWU(product: Product, settings: Settings): number {
 export function getTicketBaseWU(ticket: Ticket, state: DemoState): number {
   const products = ticket.productIds.map(id => state.products.find(p => p.id === id)).filter((p): p is Product => !!p);
   if (ticket.kind === 'publish') return round(products.reduce((sum, p) => sum + getProductBaseWU(p, state.settings), 0));
+  if (ticket.kind === 'description' || ticket.kind === 'merge') return 1;
   if (ticket.kind === 'split') return round(state.settings.requestWeights.split);
   return round(state.settings.requestWeights[ticket.kind] * Math.max(1, ticket.productIds.length));
 }
@@ -186,6 +187,7 @@ export function applyAction(original: DemoState, action: Action, now: number, ac
       const ids = [...new Set(action.productIds)];
       if (!ids.length && !action.newProduct) throw new Error('Выберите товар или укажите партномер нового товара.');
       if (ids.length && action.newProduct) throw new Error('Запрос нового товара не должен содержать существующие карточки.');
+      if (action.kind === 'merge' && ids.length < 2) throw new Error('Для объединения выберите минимум два товара.');
       if (action.kind === 'split' && ids.length !== 1) throw new Error('Для разъединения выберите одну исходную карточку.');
       if (action.newProduct) {
         if (action.kind !== 'publish') throw new Error('Для нового товара выберите запрос на публикацию.');
@@ -196,7 +198,7 @@ export function applyAction(original: DemoState, action: Action, now: number, ac
       const priority = products.length ? [...products].sort((a, b) => order.indexOf(a.priority) - order.indexOf(b.priority))[0].priority : state.settings.newProductPriority;
       let next = 1049;
       while (state.tickets.some(t => t.id === `CT-${next}`)) next++;
-      const ticket: Ticket = { id: `CT-${next}`, kind: action.kind, productIds: ids, newProduct: action.newProduct, priority, source: action.source.trim(), description: action.description.trim(), createdAt: now, createdBy: actorId, status: 'queued', acknowledgedBy: [], claimCycleStartedAt: now, responseBreached: false, executionBreached: false, pauses: [], batch: ids.length > 1, items: ids.map(productId => ({ productId })), history: [] };
+      const ticket: Ticket = { id: `CT-${next}`, kind: action.kind, productIds: ids, newProduct: action.newProduct, priority, source: action.source.trim(), description: action.description.trim(), createdAt: now, createdBy: actorId, status: 'queued', acknowledgedBy: [], claimCycleStartedAt: now, responseBreached: false, executionBreached: false, pauses: [], batch: ids.length > 1 && action.kind !== 'merge', items: ids.map(productId => ({ productId })), history: [] };
       history(state, ticket, now, actorId, `Запрос создан. Направлен всей команде Content AplTech. Приоритет ${priority} наследуется от товара.`);
       state.tickets.unshift(ticket); notifyQueue(state, ticket, now); break;
     }
@@ -217,13 +219,12 @@ export function applyAction(original: DemoState, action: Action, now: number, ac
       if (ticket.status !== 'queued' || ticket.assigneeId) throw new Error('Запрос уже взят другим исполнителем.');
       if (!ticket.acknowledgedBy.includes(actorId)) throw new Error('Сначала подтвердите получение уведомления.');
       if (ticket.batch) {
-        if (action.promisedDueAt === undefined) throw new Error('Для списка укажите общий срок выполнения.');
-        validateDue(action.promisedDueAt, now);
+        if (action.promisedDueAt !== undefined) validateDue(action.promisedDueAt, now);
       }
       ticket.status = 'in_progress'; ticket.assigneeId = actorId; ticket.claimedAt = now;
       if (ticket.firstClaimedAt === undefined) {
         ticket.firstClaimedAt = now;
-        ticket.originalDueAt = ticket.batch ? action.promisedDueAt : addWorkingMinutes(now, state.settings.executionMinutes, state.settings);
+        ticket.originalDueAt = action.promisedDueAt ?? addWorkingMinutes(now, state.settings.executionMinutes, state.settings);
         ticket.dueAt = ticket.originalDueAt;
       } else if (ticket.batch && action.promisedDueAt !== undefined) ticket.dueAt = action.promisedDueAt;
       history(state, ticket, now, actorId, `Взят в работу. ${ticket.batch ? `Общий срок ${formatDate(ticket.dueAt!)}. Внутренних таймеров карточек нет.` : `SLA выполнения ${state.settings.executionMinutes} рабочих минут.`}`);
@@ -354,6 +355,17 @@ export function applyAction(original: DemoState, action: Action, now: number, ac
         mandatoryProduct(product, 'publish');
         const baseWU = getProductBaseWU(product, state.settings);
         state.operations.push({ id: `plan-${product.id}-v1`, productIds: [product.id], authorId: actorId, at: now, baseWU, multiplier: 1, totalWU: baseWU, source: 'plan', ruleSnapshot: `Создание и публикация плановой карточки, версия 1. Вес ${baseWU} WU; без множителя запроса.` });
+      }
+      break;
+    }
+    case 'set_product_profile': {
+      requireRole(actor, ['lead']); required(action.reason, 'Причина изменения');
+      if (!['Critical','High','Normal','Low'].includes(action.priority) || !['easy','medium','complex'].includes(action.complexity)) throw new Error('Неверный профиль карточки.');
+      const product=getProduct(action.productId); product.priority=action.priority; product.complexity=action.complexity;
+      const order=['Critical','High','Normal','Low'];
+      for(const t of state.tickets.filter(t=>t.status!=='completed'&&t.productIds.includes(product.id))){
+        t.priority=t.productIds.map(getProduct).sort((a,b)=>order.indexOf(a.priority)-order.indexOf(b.priority))[0].priority;
+        history(state,t,now,actorId,'Профиль карточки обновлён. '+action.reason);
       }
       break;
     }

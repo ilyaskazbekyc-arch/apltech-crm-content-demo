@@ -8,11 +8,11 @@ export const ACTORS: Actor[] = [
 ];
 
 export const DEFAULT_SETTINGS: Settings = {
-  responseMinutes: 2, warningMinutes: 5, executionMinutes: 10, slaBonus: 1.5, slaPenaltyPP: 1,
+  responseMinutes: 3, warningMinutes: 4, executionMinutes: 5, slaBonus: 1.5, slaPenaltyPP: 1,
   qualityPenaltyPP: 3, targetWU: 150, workedDays: 1, productivityCap: 120, criticalGate: 99,
   newProductPriority: 'Normal', priorityRates: { Critical: 2, High: 1.5, Normal: 1, Low: 0.75 },
   complexityRates: { easy: 1, medium: 2, complex: 3 },
-  requestWeights: { image: 0.5, description: 1, 'remove-distributor': 0.5, split: 2, publish: 1 }, holidays: [],
+  requestWeights: { image: 0.5, description: 1, 'remove-distributor': 0.5, split: 2, publish: 1, merge: 1 }, holidays: [],
 };
 
 export function createSeed(now: number): DemoState {

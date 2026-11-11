@@ -3,3 +3,7 @@
 .crm-ticket-workspace.queue-only{display:block}.crm-ticket-workspace:not(.queue-only) .crm-ticket-table{min-width:0!important}.crm-ticket-workspace:not(.queue-only) .crm-ticket-table th:nth-child(3),.crm-ticket-workspace:not(.queue-only) .crm-ticket-table td:nth-child(3),.crm-ticket-workspace:not(.queue-only) .crm-ticket-table th:nth-child(5),.crm-ticket-workspace:not(.queue-only) .crm-ticket-table td:nth-child(5),.crm-ticket-workspace:not(.queue-only) .crm-ticket-table th:nth-child(6),.crm-ticket-workspace:not(.queue-only) .crm-ticket-table td:nth-child(6){display:none}.crm-ticket-workspace:not(.queue-only) .crm-title-row h1{font-size:21px}
 
 .crm-queue-tabs{margin:18px 0}.crm-event-center{width:min(850px,95vw);max-height:90vh;overflow:auto}.crm-event-list{display:grid;gap:12px;margin-top:18px}.crm-event-card{border:1px solid #e4e9ef;border-radius:12px;padding:16px}.crm-event-card.unread{border-left:3px solid #3275db;background:#f8fbff}.crm-event-card p{margin:10px 0}.crm-event-actions{margin-top:12px}.crm-event-center h2{display:flex;align-items:center;gap:8px}
+
+.crm-ticket-table tr.crm-ticket-overdue td { background: #fff1f1; }
+.crm-ticket-table tr.crm-ticket-overdue:hover td { background: #ffe7e7; }
+.crm-employee-filter { max-width:360px; margin-bottom:20px; }

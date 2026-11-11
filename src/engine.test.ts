@@ -27,17 +27,17 @@ describe('Рабочий календарь +05', () => {
 });
 
 describe('Очередь, подтверждение и SLA', () => {
-  it('уведомляет обоих специалистов; подтверждение не назначает исполнителя и не останавливает 2 минуты', () => {
+  it('уведомляет обоих специалистов; подтверждение не назначает исполнителя и не останавливает 3 минуты', () => {
     let state = create(fresh());
     const id = state.tickets[0].id;
     expect(state.notifications.filter(n => n.requiresAck).map(n => n.recipientId).sort()).toEqual(['specialist1', 'specialist2']);
     state = applyAction(state, { type: 'ack_ticket', ticketId: id }, start + minute, 'specialist1');
     expect(state.tickets[0].assigneeId).toBeUndefined();
-    state = applyAction(state, { type: 'tick' }, start + 3 * minute, 'manager1');
+    state = applyAction(state, { type: 'tick' }, start + 4 * minute, 'manager1');
     expect(state.slaPenalties).toHaveLength(1);
     expect(state.slaPenalties[0].target).toBe('team');
     expect(state.slaPenalties[0].penaltyPP).toBe(1);
-    expect(getTicketSla(state.tickets[0], state, start + 3 * minute).responseMinutes).toBe(3);
+    expect(getTicketSla(state.tickets[0], state, start + 4 * minute).responseMinutes).toBe(4);
   });
   it('требует подтверждение и не допускает двойное взятие', () => {
     let state = create(fresh()); const id = state.tickets[0].id;
@@ -45,10 +45,10 @@ describe('Очередь, подтверждение и SLA', () => {
     state = claim(state);
     expect(() => applyAction(state, { type: 'claim_ticket', ticketId: id }, start, 'specialist2')).toThrow('уже взят');
   });
-  it('2 минуты на взятие и 10 на выполнение включительно; бонус начисляется один раз', () => {
-    let state = claim(create(fresh()), start + 2 * minute);
+  it('3 минуты на взятие и 5 на выполнение включительно; бонус начисляется один раз', () => {
+    let state = claim(create(fresh()), start + 3 * minute);
     const id = state.tickets[0].id;
-    state = applyAction(state, { type: 'complete_ticket', ticketId: id }, start + 12 * minute, 'specialist1');
+    state = applyAction(state, { type: 'complete_ticket', ticketId: id }, start + 8 * minute, 'specialist1');
     expect(state.operations).toHaveLength(1);
     expect(state.operations[0].totalWU).toBe(1.5);
     expect(state.slaPenalties).toHaveLength(0);
@@ -56,7 +56,7 @@ describe('Очередь, подтверждение и SLA', () => {
     expect(state.operations).toHaveLength(1);
   });
   it('не складывает командное и личное нарушение одного запроса', () => {
-    let state = claim(create(fresh()), start + 3 * minute);
+    let state = claim(create(fresh()), start + 4 * minute);
     const id = state.tickets[0].id;
     state = applyAction(state, { type: 'complete_ticket', ticketId: id }, start + 14 * minute, 'specialist1');
     expect(state.tickets[0].responseBreached).toBe(true);
@@ -65,7 +65,7 @@ describe('Очередь, подтверждение и SLA', () => {
     expect(state.slaPenalties[0].target).toBe('team');
     expect(state.operations[0].multiplier).toBe(1);
   });
-  it('предупреждает на 5-й минуте, штрафует после 10-й личного исполнителя', () => {
+  it('предупреждает на 4-й минуте, штрафует после 5-й личного исполнителя', () => {
     let state = claim(create(fresh()));
     expect(getTicketSla(state.tickets[0], state, start + 5 * minute).warning).toBe(true);
     state = applyAction(state, { type: 'tick' }, start + 11 * minute, 'manager1');
@@ -75,9 +75,9 @@ describe('Очередь, подтверждение и SLA', () => {
 });
 
 describe('Срок списка, переносы и ожидание менеджера', () => {
-  it('у списка только общий срок, без 5/10-минутного SLA отдельных карточек', () => {
+  it('у списка только общий срок, по умолчанию 5 минут, можно указать другой срок', () => {
     let state = create(fresh(), start, ['526005', '526006']);
-    expect(() => claim(state, start)).toThrow('общий срок');
+    expect(getTicketSla(claim(state, start).tickets[0], claim(state,start), start).executionRemaining).toBe(5);
     state = claim(state, start, start + 60 * minute);
     state = applyAction(state, { type: 'tick' }, start + 20 * minute, 'manager1');
     expect(state.slaPenalties).toHaveLength(0);
@@ -113,7 +113,7 @@ describe('Срок списка, переносы и ожидание менед
     expect(state.tickets[0].status).toBe('queued');
     expect(state.tickets[0].assigneeId).toBeUndefined();
     expect(state.tickets[0].acknowledgedBy).toEqual([]);
-    expect(getTicketSla(state.tickets[0], state, start + 60 * minute).executionRemaining).toBe(7);
+    expect(getTicketSla(state.tickets[0], state, start + 60 * minute).executionRemaining).toBe(2);
     expect(state.notifications.filter(n => n.requiresAck)).toHaveLength(2);
   });
 });
@@ -152,7 +152,7 @@ describe('Живой приоритет и единый учёт WU', () => {
     let state = claim(create(fresh())); const id = state.tickets[0].id;
     state = applyAction(state, { type: 'complete_ticket', ticketId: id }, start + minute, 'specialist1');
     state = applyAction(state, { type: 'reopen_ticket', ticketId: id, reason: 'Уточнить после проверки' }, start + 120 * minute, 'manager1');
-    expect(getTicketSla(state.tickets[0], state, start + 120 * minute).executionRemaining).toBe(9);
+    expect(getTicketSla(state.tickets[0], state, start + 120 * minute).executionRemaining).toBe(4);
     state = claim(state, start + 120 * minute);
     expect(state.slaPenalties).toHaveLength(0);
   });
