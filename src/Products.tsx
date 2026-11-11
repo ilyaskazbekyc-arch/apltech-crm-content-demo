@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Complexity, Priority, Product, ScreenProps } from './types';
 import { ACTORS } from './seed';
-import { RequestForm } from './RequestForm';
+import { ChevronDown, Pencil, CircleAlert } from 'lucide-react';
 import { catalogValue as pdpValue } from './catalog';
 import { CatalogFilters } from './CatalogFilters';
-import { EMPTY_QUERY,filterProducts,catalogValue,publication } from './catalog';
+import { EMPTY_QUERY,filterProducts,catalogValue } from './catalog';
 import { formatDate, getProductBaseWU } from './engine';
 
 const PRIORITIES: Priority[] = ['Critical', 'High', 'Normal', 'Low'];
@@ -39,34 +39,69 @@ function EditIcon() {
   return <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m14 4 6 6M4 20l5-1 12-12a2.2 2.2 0 0 0-3-3L6 16l-2 4Z"/><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7"/></svg>;
 }
 
-export function ProductList(props: ScreenProps & { createProduct: () => void; selectedIds: string[]; onSelection: (ids: string[]) => void; bulkPriority: () => void; createRequest: () => void; editSelection:()=>void; editProduct:(id:string)=>void }) {
- const {state,actor,selectedIds,onSelection}=props;
- const [query,setQuery]=useState({...EMPTY_QUERY,status:'Опубликовано'});
- const [descriptionId,setDescriptionId]=useState<string|null>(null);
- const [page,setPage]=useState(1),[perPage,setPerPage]=useState(20);
- const visible=filterProducts(state.products,query,props.now),pages=Math.max(1,Math.ceil(visible.length/perPage)),current=Math.min(page,pages);
- const rows=visible.slice((current-1)*perPage,current*perPage);
- const allSelected=rows.length>0&&rows.every(p=>selectedIds.includes(p.id));
- const updateQuery=(q:typeof query)=>{setQuery(q);setPage(1)};
- return <div className="crm-exact-catalog"><h1>Товары</h1><CatalogFilters products={state.products} value={query} onChange={q=>updateQuery({...q})} actions={<>
- {actor.role==='specialist'&&<button className="crm-btn crm-btn-primary" onClick={props.createProduct}>＋ Создать товар</button>}
- {actor.role==='manager'&&<button className="crm-btn crm-btn-primary" onClick={props.createRequest}>Создать запрос{selectedIds.length?' · '+selectedIds.length:''}</button>}
- {actor.role==='lead'&&<button className="crm-btn crm-btn-primary" disabled={!selectedIds.length} onClick={props.bulkPriority}>Изменить приоритет</button>}
- <button className="crm-btn crm-btn-soft" disabled={!selectedIds.length} onClick={props.editSelection}>Массовое редактирование{selectedIds.length?' · '+selectedIds.length:''}</button>
- </>}/>
- <section className="crm-panel crm-panel-pad"><div className="crm-table-toolbar"><span className="crm-small">Показаны записи <b>{visible.length?(current-1)*perPage+1:0}–{Math.min(current*perPage,visible.length)}</b> из <b>{visible.length}</b>.</span><label className="crm-small">На странице <select aria-label="Товаров на странице" value={perPage} onChange={e=>{setPerPage(Number(e.target.value));setPage(1)}}>{[10,20,50].map(n=><option key={n}>{n}</option>)}</select></label></div>
- {selectedIds.length>0&&<div className="crm-selection-bar">Выбрано: {selectedIds.length} <button className="crm-link" onClick={()=>onSelection([])}>Снять выделение</button></div>}
- <div className="crm-table-wrap"><table className="crm-table crm-exact-product-table"><colgroup><col style={{width:55}}/><col style={{width:'22%'}}/><col style={{width:'25%'}}/><col style={{width:'39%'}}/><col style={{width:'14%'}}/></colgroup><thead><tr><th><span>#</span> <input type="checkbox" aria-label="Выбрать все товары" checked={allSelected} onChange={()=>onSelection(allSelected?selectedIds.filter(id=>!rows.some(p=>p.id===id)):[...new Set([...selectedIds,...rows.map(p=>p.id)])])}/></th><th>Направление</th><th><button className="crm-link" onClick={()=>updateQuery({...query,sort:'name'})}>Наименование</button></th><th>Информация о товаре</th><th><button className="crm-link" aria-label="Сортировать по цене на сайте" onClick={()=>updateQuery({...query,sort:query.sort==='priceAsc'?'priceDesc':'priceAsc'})}>Цена на сайте {query.sort==='priceAsc'?'↑':'↓'}</button></th></tr></thead><tbody>{rows.map((product,index)=>{
- let extra:Array<{name:string;price:string;stock:string;reserve:string;await:string}>=[];try{extra=JSON.parse(String(product.pdp?.distributors||'[]'))}catch{/* Keep primary supplier visible. */}
- const suppliers=[...(product.supplier?[{name:product.supplier,price:String(product.pdp?.incomingPrice??Math.round(product.price/1.14)),stock:String(product.stock),reserve:String(product.pdp?.reserve??0),await:String(product.pdp?.await??0)}]:[]),...extra];
- return <tr key={product.id} className={selectedIds.includes(product.id)?'selected':''}><td><input type="checkbox" aria-label={'Выбрать '+product.partNumber} checked={selectedIds.includes(product.id)} onChange={()=>onSelection(selectedIds.includes(product.id)?selectedIds.filter(id=>id!==product.id):[...selectedIds,product.id])}/><p className="crm-tiny">{(current-1)*perPage+index+1}</p></td>
- <td><div className="crm-exact-direction"><a href={'#products/'+product.id+'?edit=1'} aria-label={'Открыть карточку '+product.partNumber} onClick={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey){e.preventDefault();props.openProduct(product.id)}}}><ProductImage product={product} className="crm-exact-thumb"/></a><div><span className="crm-small">{catalogValue(product,'category')} <b>{catalogValue(product,'vendor')}</b></span><p className={'crm-tiny '+(product.stock>0?'crm-text-success':'crm-muted')}>{product.stock>0?'В наличии':product.pdp?.order?'Под заказ':'Нет в наличии'}</p></div></div></td>
- <td><button className="crm-link crm-exact-name" onClick={()=>props.openProduct(product.id)}>{product.pdp?.syncedAt?'⇄ ':''}{product.name}</button><div className="crm-product-pn">pn: {product.partNumber} <button className="crm-link" aria-label={'Скопировать партномер '+product.partNumber} onClick={()=>navigator.clipboard.writeText(product.partNumber)}>⧉</button></div><button className="crm-link crm-small" onClick={()=>setDescriptionId(descriptionId===product.id?null:product.id)}>Описание</button>{descriptionId===product.id&&<p className="crm-small">{product.description}</p>}
-</td>
- <td><table className="crm-supplier-grid"><thead><tr><th>Поставщик</th><th>Нал</th><th>Рез</th><th>Ожид</th><th>Входная</th><th>Актуальность</th></tr></thead><tbody>{suppliers.map((d,i)=><tr key={i}><td>{d.name}</td><td>{d.stock}</td><td>{d.reserve}</td><td>{d.await}</td><td>{money(Number(d.price))}</td><td>{formatDate(product.lastEditedAt)}</td></tr>)}</tbody></table>{!suppliers.length&&<span className="crm-small crm-muted">Нет дистрибьюторов</span>}</td>
- <td><span className="crm-tiny crm-muted">Стандартная</span><p className="crm-exact-price">{money(product.price)} <span className="crm-tiny">({product.pdp?.markup??14}%)</span></p>{publication(product)!=='Опубликовано'&&<span className="crm-tag">{publication(product)}</span>}</td></tr>})}</tbody></table></div>
- {!visible.length&&<p role="status" className="crm-panel-pad crm-muted">По выбранным фильтрам товары не найдены.</p>}
- <nav className="crm-catalog-pages" aria-label="Страницы товаров"><button disabled={current===1} onClick={()=>setPage(current-1)}>«</button>{Array.from({length:pages},(_,i)=><button key={i} aria-current={current===i+1?'page':undefined} onClick={()=>setPage(i+1)}>{i+1}</button>)}<button disabled={current===pages} onClick={()=>setPage(current+1)}>»</button></nav></section><div className="crm-footer">CRM AplTech Казахстан (1.00) © 2026</div></div>;
+interface SupplierRow {
+  name: string; stock: string; reserve: string; await: string; incomingPrice: string; updatedLabel: string;
+}
+function productSuppliers(product: Product): SupplierRow[] {
+  if (product.pdp?.supplierRows) {
+    try {
+      const rows: unknown = JSON.parse(String(product.pdp.supplierRows));
+      if (Array.isArray(rows)) return rows.map(row => ({
+        name: String(row.name ?? ''), stock: String(row.stock ?? '—'), reserve: String(row.reserve ?? '—'),
+        await: String(row.await ?? '—'), incomingPrice: typeof row.incomingPrice==='number' ? money(row.incomingPrice) : String(row.incomingPrice ?? '—'), updatedLabel: String(row.updatedLabel ?? '—'),
+      }));
+    } catch { /* An unavailable snapshot must not invent supplier data. */ }
+  }
+  let extra: Array<{name:string;price?:string;stock?:string;reserve?:string;await?:string;updatedLabel?:string}> = [];
+  try { extra = JSON.parse(String(product.pdp?.distributors || '[]')); } catch { /* Keep the known supplier. */ }
+  return [
+    ...(product.supplier ? [{name:product.supplier,stock:String(product.stock),reserve:String(product.pdp?.reserve ?? 0),await:String(product.pdp?.await ?? 0),incomingPrice:product.pdp?.incomingPrice !== undefined ? String(product.pdp.incomingPrice) : product.pdp?.crmSample ? '—' : String(Math.round(product.price/1.14)),updatedLabel:String(product.pdp?.updatedLabel || (product.pdp?.crmSample ? '—' : formatDate(product.lastEditedAt)))}] : []),
+    ...extra.map(row => ({name:row.name,stock:String(row.stock ?? '—'),reserve:String(row.reserve ?? '—'),await:String(row.await ?? '—'),incomingPrice:String(row.price ?? '—'),updatedLabel:row.updatedLabel || '—'})),
+  ];
+}
+function SupplierTable({product}:{product:Product}) {
+  const rows = productSuppliers(product);
+  return rows.length ? <table className="crm-supplier-grid"><thead><tr><th>Поставщик</th><th>Нал</th><th>Рез</th><th>Ожид</th><th>Входная</th><th>Актуальность</th></tr></thead><tbody>{rows.map((row,index)=><tr key={index}><td>{row.name}</td><td>{row.stock}</td><td>{row.reserve}</td><td>{row.await}</td><td>{row.incomingPrice}</td><td>{row.updatedLabel}</td></tr>)}</tbody></table> : <span className="crm-small crm-muted">Нет дистрибьюторов</span>;
+}
+export function ContentSendMenu({productId,onRework,onError,compact=false}:{productId:string;onRework:(id:string)=>void;onError:(id:string)=>void;compact?:boolean}) {
+  return <details className={'crm-catalog-send-menu'+(compact?' compact':'')}>
+    <summary className={'crm-btn '+(compact?'crm-btn-soft crm-btn-sm':'crm-btn-primary')}>Отправить в контент <ChevronDown size={14}/></summary>
+    <div><button type="button" onClick={event=>{event.currentTarget.closest('details')?.removeAttribute('open');onRework(productId)}}><Pencil size={15}/>Отправить на доработку</button><button type="button" onClick={event=>{event.currentTarget.closest('details')?.removeAttribute('open');onError(productId)}}><CircleAlert size={15}/>Сообщить об ошибке</button></div>
+  </details>;
+}
+
+export function ProductList(props: ScreenProps & { products?:Product[]; createProduct: () => void; selectedIds: string[]; onSelection: (ids: string[]) => void; bulkPriority: () => void; createRequest: () => void; editSelection:()=>void; editProduct:(id:string)=>void }) {
+  const {state,actor,selectedIds,onSelection}=props;
+  const products=props.products ?? state.products;
+  const [query,setQuery]=useState({...EMPTY_QUERY});
+  const [descriptionId,setDescriptionId]=useState<string|null>(null);
+  const [page,setPage]=useState(1),[perPage,setPerPage]=useState(50);
+  const visible=filterProducts(products,query,props.now),pages=Math.max(1,Math.ceil(visible.length/perPage)),current=Math.min(page,pages);
+  const rows=visible.slice((current-1)*perPage,current*perPage);
+  const allSelected=rows.length>0&&rows.every(product=>selectedIds.includes(product.id));
+  const updateQuery=(q:typeof query)=>{setQuery(q);setPage(1)};
+  return <div className="crm-exact-catalog"><h1>Товары</h1><CatalogFilters products={products} value={query} onChange={q=>updateQuery({...q})} actions={<>
+    <button className="crm-btn crm-btn-primary" onClick={props.createProduct}>＋ Создать товар</button>
+    {selectedIds.length>0&&<><button className="crm-btn crm-btn-soft" onClick={props.createRequest}>Отправить в контент · {selectedIds.length}</button><button className="crm-btn crm-btn-soft" onClick={props.editSelection}>Массовое редактирование</button>{actor.role==='lead'&&<button className="crm-btn crm-btn-soft" onClick={props.bulkPriority}>Изменить приоритет</button>}</>}
+  </>}/>
+  <section className="crm-panel crm-panel-pad crm-catalog-results"><div className="crm-table-toolbar"><span className="crm-small">Показаны товары <b>{visible.length?(current-1)*perPage+1:0}–{Math.min(current*perPage,visible.length)}</b> из <b>{visible.length}</b>.</span><label className="crm-small crm-catalog-page-size">На странице <select aria-label="Товаров на странице" value={perPage} onChange={event=>{setPerPage(Number(event.target.value));setPage(1)}}>{[10,20,50].map(n=><option key={n}>{n}</option>)}</select></label></div>
+  {selectedIds.length>0&&<div className="crm-selection-bar">Выбрано: {selectedIds.length} <button className="crm-link" onClick={()=>onSelection([])}>Снять выделение</button></div>}
+  <div className="crm-table-wrap"><table className="crm-table crm-exact-product-table"><colgroup><col style={{width:'5%'}}/><col style={{width:'21%'}}/><col style={{width:'22%'}}/><col style={{width:'40%'}}/><col style={{width:'12%'}}/></colgroup><thead><tr><th><span>#</span><input className="crm-catalog-select" type="checkbox" aria-label="Выбрать все товары" checked={allSelected} onChange={()=>onSelection(allSelected?selectedIds.filter(id=>!rows.some(product=>product.id===id)):[...new Set([...selectedIds,...rows.map(product=>product.id)])])}/></th><th>Направление</th><th><button className="crm-link" onClick={()=>updateQuery({...query,sort:'name'})}>Наименование</button></th><th>Информация о товаре</th><th><button className="crm-link crm-price-sort" aria-label="Сортировать по цене на сайте" onClick={()=>updateQuery({...query,sort:query.sort==='priceAsc'?'priceDesc':'priceAsc'})}>Цена на сайте ↕</button></th></tr></thead><tbody>{rows.map((product,index)=>{
+    const availability=String(product.pdp?.availability || (product.stock>0?'В наличии':product.pdp?.order?'Под заказ':'Нет в наличии'));
+    const available=availability==='В наличии';
+    const priceType=String(product.pdp?.priceType || 'Стандартная');
+    const markup=product.pdp?.markup ?? (product.pdp?.crmSample ? undefined : 14);
+    const vendor=catalogValue(product,'vendor');
+    return <tr key={product.id} className={selectedIds.includes(product.id)?'selected':''}>
+      <td><div className="crm-catalog-row-number">{(current-1)*perPage+index+1}</div><input className="crm-catalog-select" type="checkbox" aria-label={'Выбрать '+product.partNumber} checked={selectedIds.includes(product.id)} onChange={()=>onSelection(selectedIds.includes(product.id)?selectedIds.filter(id=>id!==product.id):[...selectedIds,product.id])}/></td>
+      <td><div className="crm-exact-direction"><a href={'#products/'+product.id+'?edit=1'} aria-label={'Открыть карточку '+product.partNumber} onClick={event=>{if(!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&!event.altKey){event.preventDefault();props.editProduct(product.id)}}}><ProductImage product={product} className="crm-exact-thumb"/></a><div><span className="crm-small">{catalogValue(product,'category')}{vendor&&vendor!=='Не задано'?' '+vendor:''}</span><p><span className={'crm-catalog-availability '+(available?'available':availability==='Нет в наличии'?'unavailable':'on-order')}>{availability}</span></p></div></div></td>
+      <td><button className="crm-link crm-exact-name" title={String(product.pdp?.listName || product.name)} onClick={()=>props.openProduct(product.id)}>{product.pdp?.synced||product.pdp?.syncedAt?'⇄ ':''}{String(product.pdp?.listName || product.name)}</button><div className="crm-product-pn"><button className="crm-link" aria-label={'Скопировать партномер '+product.partNumber} onClick={()=>navigator.clipboard.writeText(product.partNumber)}>⧉</button><span title={product.partNumber}>pn: {product.partNumber}</span></div><button className="crm-link crm-small" onClick={()=>setDescriptionId(descriptionId===product.id?null:product.id)} aria-expanded={descriptionId===product.id}>Описание</button>{descriptionId===product.id&&<p className="crm-small crm-catalog-description">{product.description||'Описание не заполнено'}</p>}<ContentSendMenu productId={product.id} onRework={props.requestProduct} onError={props.reportProductError} compact/></td>
+      <td><SupplierTable product={product}/></td>
+      <td><span className="crm-tiny crm-muted">{priceType}</span><p className="crm-exact-price">{money(product.price)}{markup!==undefined&&<span className="crm-tiny"> ({String(markup)}%)</span>}</p></td>
+    </tr>;
+  })}</tbody></table></div>
+  {!visible.length&&<p role="status" className="crm-panel-pad crm-muted">По выбранным фильтрам товары не найдены.</p>}
+  <nav className="crm-catalog-pages" aria-label="Страницы товаров"><button disabled={current===1} onClick={()=>setPage(current-1)}>«</button>{Array.from({length:pages},(_,index)=><button key={index} aria-current={current===index+1?'page':undefined} onClick={()=>setPage(index+1)}>{index+1}</button>)}<button disabled={current===pages} onClick={()=>setPage(current+1)}>»</button></nav></section><div className="crm-footer">CRM AplTech Казахстан (1.00) © 2026</div></div>;
 }
 
 type DrawerAction = 'priority' | 'weight' | 'error' | 'appeal' | 'resolve' | null;
@@ -75,7 +110,6 @@ export function ProductDrawer(props: ScreenProps & { productId: string; onClose:
   const { state, actor, productId, dispatch, onClose } = props;
   const product = state.products.find(item => item.id === productId);
   const [editing, setEditing] = useState(false);
-  const [rework,setRework]=useState(false);
   const [infoTab,setInfoTab]=useState('Инфо');
   const [action, setAction] = useState<DrawerAction>(null);
   const [reason, setReason] = useState('');
@@ -97,12 +131,12 @@ export function ProductDrawer(props: ScreenProps & { productId: string; onClose:
     setName(product.name); setDescription(product.description); setImage(product.image); setSupplier(product.supplier); setComplexity(product.complexity); setPublished(product.published); setPriority(product.priority); setWeight(product.weightOverride?.toString() ?? ''); setAutomaticWeight(product.weightOverride === undefined); setCountPlan(false);
   }, [productId, product?.version, product?.priority, product?.weightOverride]);
   useEffect(() => {
-    const listener = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); if(rework) setRework(false); else if (action) setAction(null); else if (editing) setEditing(false); else onClose(); } };
+    const listener = (event: KeyboardEvent) => { if (event.key === 'Escape') { if (document.querySelector('.crm-modal-overlay [role="dialog"]')) return; event.stopPropagation(); if (action) setAction(null); else if (editing) setEditing(false); else onClose(); } };
     document.addEventListener('keydown', listener);
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.removeEventListener('keydown', listener); document.body.style.overflow = previous; };
-  }, [onClose, editing, action, rework]);
+  }, [onClose, editing, action]);
   useEffect(() => { if (action) document.getElementById('pdp-action-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [action, issueId]);
   if (!product) return null;
   const relatedTickets = state.tickets.filter(ticket => ticket.productIds.includes(product.id));
@@ -129,7 +163,7 @@ export function ProductDrawer(props: ScreenProps & { productId: string; onClose:
     <div className="crm-drawer-overlay" onClick={onClose} aria-hidden="true"/>
     <section className="crm-drawer" role="dialog" aria-modal="true" aria-label={`Карточка товара ${product.partNumber}`}>
       <button className="crm-drawer-close" onClick={onClose} aria-label="Закрыть карточку">×</button>
-      <h1>{editing ? 'Редактирование товара' : 'Информация о товаре'}</h1>
+      <div className="crm-product-drawer-heading"><h1>{editing ? 'Редактирование товара' : 'Информация о товаре'}</h1>{!editing&&<ContentSendMenu productId={product.id} onRework={props.requestProduct} onError={props.reportProductError}/>}</div>
       {editing ? <form onSubmit={save}>
         <div className="crm-edit-preview">{name}</div>
         <div className="crm-product-edit-image-wrap"><ProductImage product={{ ...product, image }} className="crm-product-edit-image"/><div className="crm-small crm-muted">Part number: <strong className="crm-bold">{product.partNumber}</strong><br/>Автор после сохранения: {actor.name}</div></div>
@@ -145,8 +179,8 @@ export function ProductDrawer(props: ScreenProps & { productId: string; onClose:
         {!contentChanged && <p className="crm-note crm-mt16">Измените контент, чтобы сохранить новую версию карточки.</p>}
         <div className="crm-form-actions"><button type="button" className="crm-btn crm-btn-soft" onClick={() => setEditing(false)}>Отмена</button><button type="submit" className="crm-btn crm-btn-primary" disabled={!contentChanged}>Сохранить карточку</button></div>
       </form> : <>
-        <div className="crm-pdp-hero"><div className="crm-pdp-photo-column"><a className="crm-pdp-photo" href={'#products/'+product.id+'?edit=1'} target="_blank" rel="noopener" aria-label="Открыть PDP товара"><ProductImage product={product} className="crm-pdp-main-image"/></a>{actor.role==='manager'&&<button className="crm-btn crm-btn-primary crm-rework-button" onClick={()=>setRework(true)}>Отправить на доработку</button>}</div><div><h2 className="crm-pdp-title">{product.name}</h2><div className="crm-mt16"><span className={`crm-tag crm-status-pill ${product.published ? 'crm-tag-success' : ''}`}>{product.stock>0?'В наличии':'Нет в наличии'}</span></div><div className="crm-pdp-price-label">Цена на сайте (Стандартная)</div><div className="crm-pdp-price">{money(product.price)} тг.</div><div className="crm-mt16"><a className="crm-btn crm-btn-icon" href={'#products/'+product.id+'?edit=1'} target="_blank" rel="noopener" aria-label="Редактировать карточку"><EditIcon/></a></div></div></div>
-        <table className="crm-supplier-grid"><thead><tr><th>Поставщик</th><th>Нал</th><th>Рез</th><th>Ожид</th><th>Входная</th><th>Актуальность</th></tr></thead><tbody><tr><td>{product.supplier || 'Не указан'}</td><td>{product.stock}</td><td>{String(product.pdp?.reserve??0)}</td><td>{String(product.pdp?.await??0)}</td><td>{money(Number(product.pdp?.incomingPrice??Math.round(product.price/1.14)))}</td><td>{formatDate(product.lastEditedAt)}</td></tr></tbody></table>
+        <div className="crm-pdp-hero"><div className="crm-pdp-photo-column"><a className="crm-pdp-photo" href={'#products/'+product.id+'?edit=1'} target="_blank" rel="noopener" aria-label="Открыть PDP товара"><ProductImage product={product} className="crm-pdp-main-image"/></a></div><div><h2 className="crm-pdp-title">{String(product.pdp?.title || product.name)}</h2><div className="crm-mt16"><span className={`crm-tag crm-status-pill ${product.stock>0 ? 'crm-tag-success' : 'crm-tag-error'}`}>{product.stock>0?'В наличии':'Нет в наличии'}</span></div><div className="crm-pdp-price-label">Цена на сайте ({String(product.pdp?.priceType || 'Стандартная')})</div><div className="crm-pdp-price">{money(product.price)} тг.</div><div className="crm-mt16"><a className="crm-btn crm-btn-icon" href={'#products/'+product.id+'?edit=1'} target="_blank" rel="noopener" aria-label="Редактировать карточку"><EditIcon/></a></div></div></div>
+        <SupplierTable product={product}/>
         <div className="crm-pdp-description"><h3>Короткое описание</h3><div className="crm-soft-box">{product.description || 'Описание пока не заполнено'}</div></div>
 
         {action && <form id="pdp-action-form" className="crm-inline-form" onSubmit={submitAction}>
@@ -158,16 +192,15 @@ export function ProductDrawer(props: ScreenProps & { productId: string; onClose:
           {action === 'resolve' && <div className="crm-field crm-mb16"><label htmlFor="pdp-error-resolution">Решение руководителя</label><select id="pdp-error-resolution" value={cancelError ? 'cancel' : 'keep'} onChange={event => setCancelError(event.target.value === 'cancel')}><option value="cancel">Отменить ошибку и восстановить KPI</option><option value="keep">Подтвердить ошибку</option></select></div>}
           <div className="crm-field"><label htmlFor="pdp-reason" className="crm-required">{action === 'appeal' ? 'Причина оспаривания' : 'Причина'}</label><textarea id="pdp-reason" value={reason} onChange={event => setReason(event.target.value)} required minLength={3} maxLength={1500} placeholder={action === 'error' ? 'Опишите конкретную ошибку в карточке' : 'Укажите основание изменения'}/></div><div className="crm-form-actions"><button type="button" className="crm-btn crm-btn-soft" onClick={() => setAction(null)}>Отмена</button><button type="submit" className={`crm-btn ${action === 'error' ? 'crm-btn-danger' : 'crm-btn-primary'}`}>{action === 'error' ? 'Зафиксировать ошибку' : action === 'appeal' ? 'Отправить оспаривание' : action === 'resolve' ? 'Сохранить решение' : 'Сохранить изменение'}</button></div>
         </form>}
-        <div className="crm-tabs crm-reference-info-tabs">{['Инфо','Стоимость','Характеристики'].map(tab=><button key={tab} className={'crm-tab '+(infoTab===tab?'active':'')} onClick={()=>setInfoTab(tab)}>{tab}</button>)}</div>{infoTab==='Стоимость'&&<div className="crm-soft-box crm-pdp-info"><div>Клиентская цена: {money(product.price)} тг.</div><div>Процент наценки: {String(product.pdp?.markup??14)}%</div><div>Входная цена: {money(Number(product.pdp?.incomingPrice??Math.round(product.price/1.14)))} тг.</div></div>}{infoTab==='Характеристики'&&<div className="crm-soft-box crm-pdp-info"><div>Тип устройства: {String(product.pdp?.device||'Не задано')}</div><div>Вес в упаковке: {String(product.pdp?.weight||'Не задано')}</div><div>Габариты: {[product.pdp?.length,product.pdp?.width,product.pdp?.height].filter(Boolean).join(' × ')||'Не задано'}</div></div>}{infoTab==='Инфо'&&<><h3 className="crm-drawer-section-title">Основная информация</h3><div className="crm-soft-box crm-pdp-info"><div className="crm-info-row"><span>Направление</span><span className="crm-info-dots"/><span>{pdpValue(product,'area')}</span></div><div className="crm-info-row"><span>Категория</span><span className="crm-info-dots"/><span>{pdpValue(product,'category')}</span></div><div className="crm-info-row"><span>Вендор</span><span className="crm-info-dots"/><span>{pdpValue(product,'vendor')}</span></div><div className="crm-info-row"><span>Гарантия</span><span className="crm-info-dots"/><span>{String(product.pdp?.warranty||'Нет гарантии')}</span></div><div className="crm-info-row"><span>Product ID</span><span className="crm-info-dots"/><span>{product.id}</span></div><div className="crm-info-row"><span>Part number</span><span className="crm-info-dots"/><span>{product.partNumber}</span></div><div className="crm-info-row"><span>Сложность</span><span className="crm-info-dots"/><span>{COMPLEXITIES[product.complexity]}</span></div><div className="crm-info-row"><span>На складе</span><span className="crm-info-dots"/><span>{product.stock}</span></div></div></>}
-        <div className="crm-content-strip"><div className="crm-content-top"><h3>Контент</h3><PriorityTag value={product.priority}/></div><div className="crm-flex crm-between crm-wrap"><span className="crm-small">{wu(getProductBaseWU(product, state.settings))} WU · {COMPLEXITIES[product.complexity]}</span><span className="crm-tiny crm-muted">{product.weightOverride === undefined ? 'Вес по правилам' : 'Индивидуальный вес'}</span></div><div className="crm-content-meta crm-mt8">Последний автор: {actorName(product.lastEditorId)} · v{product.version}<br/>{formatDate(product.lastEditedAt)}</div><div className="crm-content-actions">
-          {actor.role === 'manager' && <span className="crm-small crm-muted">Запрос на доработку создаётся кнопкой рядом с фото товара.</span>}
+        <div className="crm-tabs crm-reference-info-tabs">{['Инфо','Стоимость','Характеристики'].map(tab=><button key={tab} className={'crm-tab '+(infoTab===tab?'active':'')} onClick={()=>setInfoTab(tab)}>{tab}</button>)}</div>{infoTab==='Стоимость'&&<div className="crm-soft-box crm-pdp-info"><div>Клиентская цена: {money(product.price)} тг.</div><div>Процент наценки: {String(product.pdp?.markup??(product.pdp?.crmSample?'—':14))}%</div><div>Входная цена: {(product.pdp?.crmSample ? productSuppliers(product)[0]?.incomingPrice || '—' : money(Number(product.pdp?.incomingPrice??Math.round(product.price/1.14))))} тг.</div></div>}{infoTab==='Характеристики'&&<div className="crm-soft-box crm-pdp-info"><div>Тип устройства: {String(product.pdp?.device||'Не задано')}</div><div>Вес в упаковке: {String(product.pdp?.weight||'Не задано')}</div><div>Габариты: {[product.pdp?.length,product.pdp?.width,product.pdp?.height].filter(Boolean).join(' × ')||'Не задано'}</div></div>}{infoTab==='Инфо'&&<><h3 className="crm-drawer-section-title">Основная информация</h3><div className="crm-soft-box crm-pdp-info"><div className="crm-info-row"><span>Направление</span><span className="crm-info-dots"/><span>{pdpValue(product,'area')}</span></div><div className="crm-info-row"><span>Категория</span><span className="crm-info-dots"/><span>{pdpValue(product,'category')}</span></div><div className="crm-info-row"><span>Вендор</span><span className="crm-info-dots"/><span>{pdpValue(product,'vendor')}</span></div><div className="crm-info-row"><span>Гарантия</span><span className="crm-info-dots"/><span>{String(product.pdp?.warranty||(product.pdp?.crmSample?'Не задано':'Нет гарантии'))}</span></div><div className="crm-info-row"><span>Product ID</span><span className="crm-info-dots"/><span>{product.id}</span></div><div className="crm-info-row"><span>Part number</span><span className="crm-info-dots"/><span>{product.partNumber}</span></div>{!product.pdp?.crmSample&&<div className="crm-info-row"><span>Сложность</span><span className="crm-info-dots"/><span>{COMPLEXITIES[product.complexity]}</span></div>}<div className="crm-info-row"><span>На складе</span><span className="crm-info-dots"/><span>{product.stock}</span></div></div></>}
+        {!product.pdp?.crmSample&&<div className="crm-content-strip"><div className="crm-content-top"><h3>Контент</h3><PriorityTag value={product.priority}/></div><div className="crm-flex crm-between crm-wrap"><span className="crm-small">{wu(getProductBaseWU(product, state.settings))} WU · {COMPLEXITIES[product.complexity]}</span><span className="crm-tiny crm-muted">{product.weightOverride === undefined ? 'Вес по правилам' : 'Индивидуальный вес'}</span></div><div className="crm-content-meta crm-mt8">Последний автор: {actorName(product.lastEditorId)} · v{product.version}<br/>{formatDate(product.lastEditedAt)}</div><div className="crm-content-actions">
+          {actor.role === 'manager' && <span className="crm-small crm-muted">Запрос создаётся через меню «Отправить в контент».</span>}
           {actor.role === 'lead' && <><button className="crm-btn crm-btn-soft" onClick={() => openAction('priority')}>Изменить приоритет</button><button className="crm-btn crm-btn-soft" onClick={() => openAction('weight')}>Изменить вес</button></>}
           {actor.role === 'specialist' && <button className="crm-btn crm-btn-primary" onClick={()=>props.editProduct(product.id)}>Редактировать контент</button>}
-        </div></div>
+        </div></div>}
         {relatedTickets.length > 0 && <><h3 className="crm-drawer-section-title">Связанные запросы</h3><div className="crm-soft-box">{relatedTickets.map(ticket => <button className="crm-linked-ticket" key={ticket.id} onClick={() => props.openTicket(ticket.id)}><span>{ticket.id} · {ticket.batch ? `Список из ${ticket.productIds.length} товаров` : product.partNumber}</span><span className="crm-tag">{STATUS_NAMES[ticket.status]}</span></button>)}</div></>}
         {productIssues.length > 0 && <><h3 className="crm-drawer-section-title">Ошибки и оспаривания</h3>{productIssues.map(issue => <div className="crm-quality-card" key={issue.id}><div className="crm-flex crm-between crm-wrap"><strong className="crm-small">{issue.id} · {actorName(issue.authorId)}</strong><span className={`crm-tag ${issue.status === 'appealed' ? 'crm-tag-warning' : 'crm-tag-error'}`}>{issue.status === 'appealed' ? 'Оспаривается' : `−${wu(issue.penaltyPP)} п.п.`}</span></div><p>{issue.reason}</p><span className="crm-tiny crm-muted">Версия {issue.version} · {formatDate(issue.at)}</span>{issue.appeal && <p className="crm-soft-box">Оспаривание: {issue.appeal}</p>}<div className="crm-content-actions">{issue.authorId === actor.id && issue.status === 'active' && <button className="crm-btn crm-btn-soft crm-btn-sm" onClick={() => openAction('appeal', issue.id)}>Оспорить</button>}{actor.role === 'lead' && <button className="crm-btn crm-btn-soft crm-btn-sm" onClick={() => openAction('resolve', issue.id)}>Рассмотреть ошибку</button>}</div></div>)}</>}
       </>}
     </section>
-    {rework&&<RequestForm {...props} fixedProduct initialProductId={productId} onClose={()=>setRework(false)} onCreated={()=>setRework(false)}/>}
   </>;
 }

@@ -4,19 +4,20 @@ import type { ScreenProps, RequestKind, TaskAttachment } from './types';
 import { getProductBaseWU } from './engine';
 import { ProductProfile } from './ProductProfile';
 import { ACTORS } from './seed';
+import {getCatalogProducts} from './crm-sample';
 
 export function RequestForm(props:ScreenProps & {initialProductId?:string;initialProductIds?:string[];initialError?:boolean;fixedProduct?:boolean;inline?:boolean;onCreated?:()=>void;onClose:()=>void}){
  useEffect(()=>{if(props.inline)return;const close=(event:KeyboardEvent)=>{if(event.key==='Escape')props.onClose()};addEventListener('keydown',close);return()=>removeEventListener('keydown',close)},[props.inline,props.onClose]);
  const initialIds=props.initialProductIds?.length?props.initialProductIds:props.initialProductId?[props.initialProductId]:[];
  const [ids,setIds]=useState<string[]>(initialIds),[kind,setKind]=useState<RequestKind>('description'),[withoutCard,setWithoutCard]=useState(false);
- const [source,setSource]=useState(props.initialProductId?'Карточка товара в CRM':''),[description,setDescription]=useState(''),[pn,setPn]=useState(''),[name,setName]=useState(''),[search,setSearch]=useState('');
+ const [source,setSource]=useState(props.initialProductId?String(props.state.products.find(p=>p.id===props.initialProductId)?.pdp?.sourceUrl||'Карточка товара в CRM'):''),[description,setDescription]=useState(''),[pn,setPn]=useState(''),[name,setName]=useState(''),[search,setSearch]=useState('');
  const [files,setFiles]=useState<TaskAttachment[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[profile,setProfile]=useState<string|null>(null);
  const [confirmed,setConfirmed]=useState(false),[critical,setCritical]=useState(false);
  const isError=!!props.initialError;
  const selected=props.state.products.filter(p=>ids.includes(p.id));
  const priority=[...selected].sort((a,b)=>['Critical','High','Normal','Low'].indexOf(a.priority)-['Critical','High','Normal','Low'].indexOf(b.priority))[0]?.priority;
  const base=kind==='publish'?selected.reduce((sum,p)=>sum+getProductBaseWU(p,props.state.settings),0):1;
- const filtered=props.state.products.filter(p=>(p.partNumber+' '+p.name+' '+p.id).toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+ const filtered=getCatalogProducts(props.state.products).filter(p=>(p.partNumber+' '+p.name+' '+p.id).toLocaleLowerCase().includes(search.toLocaleLowerCase()));
  function changeKind(value:RequestKind){setKind(value);setError('');if(value!=='publish')setWithoutCard(false);if(value==='description')setIds(ids.slice(0,1))}
  async function addFiles(list:FileList|null){if(!list)return;setError('');const incoming=Array.from(list);if(files.length+incoming.length>5||[...files,...incoming].reduce((sum,f)=>sum+f.size,0)>1048576){setError('Можно прикрепить до 5 файлов общим размером до 1 МБ.');return}setLoading(true);try{const added=await Promise.all(incoming.map(file=>new Promise<TaskAttachment>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve({name:file.name,size:file.size,type:file.type,dataUrl:String(reader.result)});reader.onerror=()=>reject(new Error('Не удалось прочитать файл.'));reader.readAsDataURL(file)})));setFiles(current=>[...current,...added])}catch{setError('Не удалось прочитать вложения.')}finally{setLoading(false)}}
  function submit(e:React.FormEvent){e.preventDefault();setError('');if(loading)return;

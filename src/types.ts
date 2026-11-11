@@ -23,7 +23,7 @@ export interface QualityIssue { id: string; productId: string; ticketId?: string
 export interface SlaPenalty { ticketId: string; at: number; target: 'team' | 'employee'; employeeId?: string; cause: 'response' | 'execution'; penaltyPP: number }
 export interface Notification { id: string; recipientId: string; at: number; title: string; message: string; ticketId?: string; read: boolean; requiresAck: boolean }
 export interface Settings { responseMinutes: number; warningMinutes: number; executionMinutes: number; slaBonus: number; slaPenaltyPP: number; qualityPenaltyPP: number; targetWU: number; workedDays: number; productivityCap: number; criticalGate: number; newProductPriority: Priority; priorityRates: Record<Priority,number>; complexityRates: Record<Complexity,number>; requestWeights: Record<RequestKind,number>; holidays: string[] }
-export interface DemoState { schema: 1; ticketWorkspaceVersion?: number; revision: number; products: Product[]; tickets: Ticket[]; operations: Operation[]; issues: QualityIssue[]; slaPenalties: SlaPenalty[]; notifications: Notification[]; settings: Settings }
+export interface DemoState { schema: 1; crmSampleVersion?: number; ticketWorkspaceVersion?: number; revision: number; products: Product[]; tickets: Ticket[]; operations: Operation[]; issues: QualityIssue[]; slaPenalties: SlaPenalty[]; notifications: Notification[]; settings: Settings }
 export type Action =
  | { type: 'set_product_profile'; productId: string; priority: Priority; complexity: Complexity; reason: string }
  | { type: 'create_error_ticket'; productId: string; reason: string; source: string; critical?: boolean }
