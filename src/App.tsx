@@ -1,6 +1,6 @@
 import {clearTicketWorkspace,TICKET_WORKSPACE_VERSION} from './workspace';
 import { useEffect, useRef, useState } from 'react';
-import { Package, ClipboardList, BarChart3, Settings, Bell, Users, ArrowLeft, X, RotateCcw, Clock3, Plus, Mail } from 'lucide-react';
+import { ClipboardList, BarChart3, Bell, Users, ArrowLeft, X, RotateCcw, Clock3, Plus } from 'lucide-react';
 import type { Action, DemoState, View, ScreenProps } from './types';
 import { ACTORS, createSeed } from './seed';
 import { applyAction, formatDate } from './engine';
@@ -25,9 +25,9 @@ function read<T>(key:string):T|undefined{try{return JSON.parse(localStorage.getI
 function write(key:string,value:unknown){try{localStorage.setItem(key,JSON.stringify(value))}catch{/* Keep the working in-memory demo if browser storage is unavailable. */}}
 function clockNow(clock:DemoClock){return clock.base+Math.max(0,Date.now()-clock.wall)}
 interface RequestDraft { productId?:string; productIds?:string[]; error?:boolean }
-function route(){const [path,query='']=location.hash.slice(1).split('?');const [view,id]=path.split('/');const params=new URLSearchParams(query);return {view:(['products','tickets','bulk','analytics','settings','mail'].includes(view)?view:'products') as View,id,edit:params.get('edit')==='1',draft:{productId:params.get('product')||undefined,productIds:params.get('products')?.split(',').filter(Boolean),error:params.get('error')==='1'} as RequestDraft}}
+function route(){const [path,query='']=location.hash.slice(1).split('?');const [view,id]=path.split('/');const params=new URLSearchParams(query);return {view:(['products','tickets','bulk','analytics','settings','mail'].includes(view)?view:'tickets') as View,id,edit:params.get('edit')==='1',draft:{productId:params.get('product')||undefined,productIds:params.get('products')?.split(',').filter(Boolean),error:params.get('error')==='1'} as RequestDraft}}
 
-const nav=[{id:'products' as View,label:'Товары',icon:Package},{id:'tickets' as View,label:'Тикеты',icon:ClipboardList},{id:'mail' as View,label:'Почта',icon:Mail},{id:'analytics' as View,label:'KPI и аналитика',icon:BarChart3},{id:'settings' as View,label:'Настройки',icon:Settings}];
+const nav=[{id:'tickets' as View,label:'Тикеты',icon:ClipboardList},{id:'analytics' as View,label:'KPI и аналитика',icon:BarChart3}];
 
 export default function App(){
  useEffect(()=>{let icon=document.querySelector<HTMLLinkElement>('link[rel="icon"]');if(!icon){icon=document.createElement('link');icon.rel='icon';document.head.appendChild(icon)}icon.type='image/png';icon.href='/favicon-test-red.png?v=solid-red-test-1'},[]);
@@ -57,7 +57,7 @@ export default function App(){
  function openCreatedTicket(){const fresh=stateRef.current;const issue=request?.error?fresh.issues.find(i=>i.productId===request.productId&&i.version===fresh.products.find(p=>p.id===i.productId)?.version):undefined;const id=issue?.ticketId||fresh.tickets[0]?.id;go('tickets',id)}
  function closeDrawer(){setEditingPdp(false);setProductId(undefined);setTicketId(undefined);location.hash=view}
  function advance(minutes:number){const next={base:clockNow(clockRef.current)+minutes*60000,wall:Date.now()};clockRef.current=next;write(CLOCK,next);setClock(next);setNow(next.base);dispatch({type:'tick'})}
- function reset(){const nextClock={base:DEMO_START,wall:Date.now()};clockRef.current=nextClock;setClock(nextClock);write(CLOCK,nextClock);const next=clearTicketWorkspace(createSeed(DEMO_START));commit(next);setNow(DEMO_START);setResetConfirm(false);setSelected([]);setNotifications(false);go('products');flash('Исходный демонстрационный пример восстановлен')}
+ function reset(){const nextClock={base:DEMO_START,wall:Date.now()};clockRef.current=nextClock;setClock(nextClock);write(CLOCK,nextClock);const next=clearTicketWorkspace(createSeed(DEMO_START));commit(next);setNow(DEMO_START);setResetConfirm(false);setSelected([]);setNotifications(false);go('tickets');flash('Исходный демонстрационный пример восстановлен')}
  const props:ScreenProps={state,actor,now,dispatch,openTicket:id=>go('tickets',id),openProduct:id=>go('products',id),requestProduct:id=>startRequest({productId:id}),reportProductError:id=>startRequest({productId:id,error:true})};
  const unread=state.notifications.filter(n=>n.recipientId===actor.id&&!n.read);
  const mandatory=actor.role==='specialist'?unread.find(n=>n.requiresAck&&n.ticketId&&state.tickets.some(t=>t.id===n.ticketId&&t.status==='queued'&&!t.acknowledgedBy.includes(actor.id))):undefined;
