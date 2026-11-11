@@ -9,3 +9,5 @@
 .crm-employee-filter { max-width:360px; margin-bottom:20px; }
 
 .crm-task-menu{position:relative;margin-right:12px}.crm-task-menu summary{cursor:pointer;list-style:none}.crm-task-menu>div{position:absolute;top:40px;left:0;background:white;padding:8px;display:grid;gap:6px;width:210px;box-shadow:0 5px 20px #15223222;border-radius:12px;z-index:50}
+
+.crm-ticket-workspace:not(.queue-only) .crm-queue-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.crm-ticket-workspace:not(.queue-only) .crm-queue-summary>div{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:14px}.crm-ticket-workspace:not(.queue-only) .crm-queue-summary span{white-space:normal;overflow-wrap:anywhere}.crm-ticket-two .crm-soft-box>label{display:block;margin-bottom:6px}
