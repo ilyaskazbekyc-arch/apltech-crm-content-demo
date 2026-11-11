@@ -72,7 +72,7 @@ export default function App(){
  {view==='tickets'&&<section className={'crm-ticket-workspace '+(ticketId?'has-detail':request&&actor.role==='manager'?'has-form':'queue-only')}><div><TicketList {...props} takeAsSpecialist={takeAsSpecialist} createRequest={()=>startRequest()}/></div>{request&&actor.role==='manager'&&<RequestForm key={JSON.stringify(request)} {...props} inline initialProductId={request.productId} initialProductIds={request.productIds} initialError={request.error} onClose={()=>go('tickets')} onCreated={openCreatedTicket}/>} {ticketId&&<TicketDrawer key={ticketId} {...props} inline ticketId={ticketId} takeAsSpecialist={takeAsSpecialist} onClose={closeDrawer} editBatch={ids=>go('bulk',ids.join(','))} createBoundProduct={id=>setNewProduct({ticketId:id})}/>}</section>}
  {view==='bulk'&&<BulkEditor key={route().id||'catalog'} {...props} initialIds={route().id?.split(',').filter(Boolean)} onClose={()=>go('products')}/>}
  {view==='analytics'&&<ImportedAnalytics {...props}/>}
- {view==='instructions'&&<Instructions {...props}/>}
+ {view==='instructions'&&<Instructions {...props} createTask={action=>{if(action.type!=='create_ticket'&&action.type!=='create_error_ticket')return false;actorRef.current='manager1';setActorId('manager1');return dispatch(action)}}/>}
  {view==='settings'&&<SettingsScreen {...props}/>}
  {view==='mail'&&<section className="crm-panel crm-panel-pad"><h1>Почта</h1><p className="crm-muted">Конструктор</p></section>}
  <p className="crm-demo-footer">Демонстрационный стенд · Все изменения сохраняются в этом браузере и обновляются в открытых вкладках.</p></main>
