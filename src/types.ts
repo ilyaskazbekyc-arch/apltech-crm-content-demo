@@ -8,7 +8,9 @@ export interface Product { id: string; name: string; partNumber: string; descrip
 export interface HistoryEvent { id: string; at: number; actorId: string; text: string }
 export interface Pause { start: number; end?: number; reason: string }
 export interface BatchItem { productId: string; completedAt?: number; authorId?: string }
+export interface TaskAttachment { name:string; size:number; type:string; dataUrl:string }
 export interface Ticket {
+  teamId?: 'content'; attachments?: TaskAttachment[];
   id: string; kind: RequestKind; productIds: string[]; newProduct?: { partNumber: string; source: string; name?: string }; priority: Priority;
   source: string; description: string; createdAt: number; createdBy: string; status: 'queued' | 'in_progress' | 'waiting_manager' | 'completed';
   assigneeId?: string; acknowledgedBy: string[]; claimCycleStartedAt: number; firstClaimedAt?: number; claimedAt?: number;
@@ -25,7 +27,8 @@ export interface DemoState { schema: 1; ticketWorkspaceVersion?: number; revisio
 export type Action =
  | { type: 'set_product_profile'; productId: string; priority: Priority; complexity: Complexity; reason: string }
  | { type: 'create_error_ticket'; productId: string; reason: string; source: string; critical?: boolean }
- | { type: 'create_ticket'; kind: RequestKind; productIds: string[]; source: string; description: string; newProduct?: {partNumber:string;source:string;name?:string} }
+ | { type: 'attach_ticket_product'; ticketId:string; productId:string }
+ | { type: 'create_ticket'; attachments?:TaskAttachment[]; kind: RequestKind; productIds: string[]; source: string; description: string; newProduct?: {partNumber:string;source:string;name?:string} }
  | { type: 'ack_ticket'; ticketId: string }
  | { type: 'claim_ticket'; ticketId: string; promisedDueAt?: number }
  | { type: 'complete_ticket'; ticketId: string }
@@ -35,7 +38,7 @@ export type Action =
  | { type: 'report_delay'; ticketId: string; reason: string; newDueAt: number }
  | { type: 'reopen_ticket'; ticketId: string; reason: string }
  | { type: 'edit_product'; productId: string; changes: Partial<Pick<Product,'name'|'description'|'image'|'supplier'|'published'|'complexity'|'price'|'stock'|'pdp'>>; countPlan?: boolean }
- | { type: 'create_product'; name: string; partNumber: string; description: string; source: string; ticketId?: string; complexity: Complexity; publishNow?: boolean; countPlan?: boolean }
+ | { type: 'create_product'; priority?: Priority; name: string; partNumber: string; description: string; source: string; ticketId?: string; complexity: Complexity; publishNow?: boolean; countPlan?: boolean }
  | { type: 'set_priority'; productIds: string[]; priority: Priority; reason: string }
  | { type: 'set_weight'; productId: string; weight?: number; reason: string }
  | { type: 'mark_error'; productId: string; ticketId?: string; reason: string; critical?: boolean }

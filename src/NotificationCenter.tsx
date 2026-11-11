@@ -26,7 +26,7 @@ export function NotificationCenter(props: ScreenProps & { mandatory: boolean; on
       const claim=n.requiresAck&&props.actor.role==='specialist'&&t?.status==='queued';
       return <article key={n.id} className={'crm-event-card '+(!n.read?'unread':'')}>
         <div className="crm-flex crm-between"><b>{n.title}</b><span className="crm-small crm-muted">{formatDate(n.at)}</span></div><p>{n.message}</p>
-        {t&&<div className="crm-flex crm-wrap"><span className="crm-tag">{t.id}</span><span className="crm-tag">{t.priority}</span>{claim&&<span className="crm-small">До взятия: {formatDuration(Math.max(0,getTicketSla(t,props.state,props.now).responseRemaining))}</span>}</div>}
+        {t&&<div className="crm-flex crm-wrap"><span className="crm-tag">{t.id}</span><span className="crm-tag">{t.productIds.length?t.priority:'Профиль пока не задан'}</span>{claim&&<span className="crm-small">До взятия: {formatDuration(Math.max(0,getTicketSla(t,props.state,props.now).responseRemaining))}</span>}</div>}
         {claim&&t.batch&&<label className="crm-field">Общий срок {t.id}<input className="crm-input" type="datetime-local" value={due[t.id]??defaultDue} onChange={e=>setDue({...due,[t.id]:e.target.value})}/></label>}
         <div className="crm-flex crm-wrap crm-event-actions">
           {ack&&<button className="crm-btn crm-btn-soft" onClick={()=>props.dispatch({type:'ack_ticket',ticketId:t!.id})}>Подтвердить получение</button>}

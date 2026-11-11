@@ -97,7 +97,7 @@ function notify(state: DemoState, recipientId: string, now: number, title: strin
   state.notifications.unshift(notification);
 }
 function notifyQueue(state: DemoState, ticket: Ticket, now: number) {
-  for (const actor of ACTORS.filter(a => a.role === 'specialist')) notify(state, actor.id, now, 'Новый запрос Content AplTech', `${ticket.id}: ${ticket.description}. Приоритет ${ticket.priority}. Подтвердите получение и возьмите запрос в работу.`, ticket.id, true);
+  for (const actor of ACTORS.filter(a => a.role === 'specialist')) notify(state, actor.id, now, 'Новый запрос Content AplTech', `${ticket.id}: ${ticket.description}. ${ticket.productIds.length?'Приоритет '+ticket.priority:'Профиль карточки пока не задан'}. Подтвердите получение и возьмите запрос в работу.`, ticket.id, true);
 }
 function addPenalty(state: DemoState, ticket: Ticket, at: number, cause: 'response' | 'execution') {
   if (state.slaPenalties.some(p => p.ticketId === ticket.id)) return;
@@ -191,16 +191,26 @@ export function applyAction(original: DemoState, action: Action, now: number, ac
       if (action.kind === 'split' && ids.length !== 1) throw new Error('Для разъединения выберите одну исходную карточку.');
       if (action.newProduct) {
         if (action.kind !== 'publish') throw new Error('Для нового товара выберите запрос на публикацию.');
-        required(action.newProduct.partNumber, 'Партномер'); required(action.newProduct.source, 'Источник');
+        if (!action.newProduct.partNumber.trim() && !action.newProduct.name?.trim()) throw new Error('Укажите партномер или название / модель нового товара.');
+        if (!action.newProduct.source.trim() && !action.attachments?.length) throw new Error('Прикрепите источник или вложения для создания карточки.');
       }
+      if (action.attachments && (action.attachments.length > 5 || action.attachments.reduce((sum,f)=>sum+f.size,0)>1048576 || action.attachments.some(f=>!f.name.trim() || f.size<0 || !f.dataUrl.startsWith('data:')))) throw new Error('До 5 вложений общим размером не более 1 МБ.');
       const products = ids.map(getProduct);
       const order = ['Critical', 'High', 'Normal', 'Low'];
       const priority = products.length ? [...products].sort((a, b) => order.indexOf(a.priority) - order.indexOf(b.priority))[0].priority : state.settings.newProductPriority;
       let next = 1049;
       while (state.tickets.some(t => t.id === `CT-${next}`)) next++;
-      const ticket: Ticket = { id: `CT-${next}`, kind: action.kind, productIds: ids, newProduct: action.newProduct, priority, source: action.source.trim(), description: action.description.trim(), createdAt: now, createdBy: actorId, status: 'queued', acknowledgedBy: [], claimCycleStartedAt: now, responseBreached: false, executionBreached: false, pauses: [], batch: ids.length > 1 && action.kind !== 'merge', items: ids.map(productId => ({ productId })), history: [] };
-      history(state, ticket, now, actorId, `Запрос создан. Направлен всей команде Content AplTech. Приоритет ${priority} наследуется от товара.`);
+      const ticket: Ticket = { id: `CT-${next}`, teamId:'content', attachments:action.attachments, kind: action.kind, productIds: ids, newProduct: action.newProduct, priority, source: action.source.trim(), description: action.description.trim(), createdAt: now, createdBy: actorId, status: 'queued', acknowledgedBy: [], claimCycleStartedAt: now, responseBreached: false, executionBreached: false, pauses: [], batch: ids.length > 1 && action.kind !== 'merge', items: ids.map(productId => ({ productId })), history: [] };
+      history(state, ticket, now, actorId, `Запрос создан. Автоматически направлен в Отдел контента. ${ids.length?'Приоритет '+priority+' наследуется от товара.':'Карточка ещё не создана; её профиль и вес пока не определены.'}`);
       state.tickets.unshift(ticket); notifyQueue(state, ticket, now); break;
+    }
+    case 'attach_ticket_product': {
+      const ticket=getTicket(action.ticketId); assigned(ticket);
+      if(ticket.kind!=='publish'||ticket.productIds.length||!ticket.newProduct) throw new Error('Привязка доступна только публикации без карточки.');
+      const product=getProduct(action.productId);
+      ticket.productIds=[product.id];ticket.items=[{productId:product.id}];ticket.priority=product.priority;
+      history(state,ticket,now,actorId,'Прикреплена карточка '+product.partNumber+' / '+product.id+'. Профиль и вес взяты из товара.');
+      break;
     }
     case 'ack_ticket': {
       requireRole(actor, ['specialist']);
@@ -343,13 +353,13 @@ export function applyAction(original: DemoState, action: Action, now: number, ac
         if (splitting ? ticket.productIds.length !== 1 : !ticket.newProduct || ticket.productIds.length) throw new Error('Запрос уже связан с новой карточкой.');
       }
       const parent = splitting ? getProduct(ticket!.productIds[0]) : undefined;
-      const product: Product = { id: String(id), name: action.name.trim(), partNumber: action.partNumber.trim(), description: action.description.trim(), supplier: action.source.trim(), image: '/assets/product-photo.jpg', price: 0, stock: 0, priority: ticket?.priority ?? state.settings.newProductPriority, complexity: action.complexity, lastEditorId: actorId, lastEditedAt: now, version: 1, published: !!action.publishNow, ...(parent ? { splitFromId: parent.id } : {}) };
+      const product: Product = { id: String(id), name: action.name.trim(), partNumber: action.partNumber.trim(), description: action.description.trim(), supplier: action.source.trim(), image: '/assets/product-photo.jpg', price: 0, stock: 0, priority: action.priority ?? ticket?.priority ?? state.settings.newProductPriority, complexity: action.complexity, lastEditorId: actorId, lastEditedAt: now, version: 1, published: !!action.publishNow, ...(parent ? { splitFromId: parent.id } : {}) };
       state.products.unshift(product);
       if (ticket) {
         if (parent) {
           parent.splitChildIds = [...(parent.splitChildIds ?? []), product.id];
           ticket.productIds.push(product.id); ticket.items.push({ productId: product.id });
-        } else { ticket.productIds = [product.id]; ticket.items = [{ productId: product.id }]; }
+        } else { ticket.productIds = [product.id]; ticket.items = [{ productId: product.id }]; ticket.priority=product.priority; }
         history(state, ticket, now, actorId, `Создана карточка ${product.id} / ${product.partNumber}. Приоритет ${product.priority}; сложность определена специалистом. Связь с запросом сохранена.`);
       } else if (action.countPlan) {
         mandatoryProduct(product, 'publish');
